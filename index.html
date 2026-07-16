@@ -1,0 +1,1687 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Sistema de Stock</title>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --surface: #ffffff;
+      --surface-2: #eef4ff;
+      --text: #172033;
+      --muted: #667085;
+      --line: #e4e7ec;
+      --primary: #2563eb;
+      --primary-2: #1d4ed8;
+      --success: #16a34a;
+      --warning: #d97706;
+      --danger: #dc2626;
+      --shadow: 0 18px 45px rgba(15, 23, 42, .08);
+      --radius: 18px;
+      --sidebar: 280px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      background: radial-gradient(circle at top left, #e0edff 0, transparent 32%), var(--bg);
+      color: var(--text);
+      overflow: hidden;
+    }
+
+    button, input, select, textarea { font: inherit; }
+    button { border: 0; cursor: pointer; touch-action: manipulation; }
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 14px;
+      padding: 12px 14px;
+      color: var(--text);
+      outline: none;
+      transition: border .18s ease, box-shadow .18s ease;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(37, 99, 235, .12); }
+    textarea { min-height: 88px; resize: vertical; }
+    label { display: block; font-size: 12px; color: var(--muted); margin: 0 0 7px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
+
+    .app { display: grid; grid-template-columns: var(--sidebar) 1fr; height: 100%; }
+    .sidebar {
+      background: rgba(255, 255, 255, .9);
+      border-right: 1px solid var(--line);
+      backdrop-filter: blur(16px);
+      padding: 18px;
+      overflow-y: auto;
+      transition: transform .25s ease, width .25s ease;
+      z-index: 20;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; padding: 8px 8px 18px; }
+    .brand-icon { width: 42px; height: 42px; border-radius: 14px; background: linear-gradient(135deg, #2563eb, #14b8a6); color: #fff; display: grid; place-items: center; box-shadow: var(--shadow); }
+    .brand h1 { font-size: 17px; margin: 0; }
+    .brand p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+    .nav { display: grid; gap: 7px; }
+    .nav button {
+      display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px;
+      border-radius: 15px; padding: 0 13px; color: #334155; background: transparent; text-align: left;
+      transition: background .16s ease, color .16s ease, transform .16s ease;
+    }
+    .nav button:hover { background: #f1f5f9; transform: translateX(2px); }
+    .nav button.active { background: #dbeafe; color: var(--primary-2); font-weight: 800; }
+    .nav .material-icons { font-size: 21px; }
+
+    .main { min-width: 0; display: flex; flex-direction: column; height: 100%; }
+    .topbar {
+      height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 14px 22px; border-bottom: 1px solid var(--line); background: rgba(246, 248, 251, .78); backdrop-filter: blur(16px);
+    }
+    .topbar-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .page-title { font-size: 22px; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .page-subtitle { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+    .content { flex: 1; overflow: auto; padding: 22px; }
+    .view { display: none; animation: fadeUp .22s ease both; }
+    .view.active { display: block; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    .btn {
+      min-height: 44px; padding: 0 16px; border-radius: 14px; background: #e2e8f0; color: #0f172a;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 800;
+      transition: transform .15s ease, background .15s ease, opacity .15s ease;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-2); }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-warning { background: #f59e0b; color: #fff; }
+    .btn-ghost { background: transparent; border: 1px solid var(--line); }
+    .btn-icon { width: 44px; padding: 0; }
+    .mobile-menu { display: none; }
+
+    .grid { display: grid; gap: 16px; }
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .card { background: rgba(255,255,255,.9); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; }
+    .card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+    .card-title { font-size: 16px; font-weight: 900; margin: 0; }
+    .muted { color: var(--muted); }
+    .stat { min-height: 132px; display: flex; flex-direction: column; justify-content: space-between; }
+    .stat-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .stat-icon { width: 42px; height: 42px; border-radius: 14px; display: grid; place-items: center; background: var(--surface-2); color: var(--primary); }
+    .stat-value { font-size: 30px; font-weight: 950; margin: 12px 0 0; }
+    .stat-label { color: var(--muted); font-weight: 700; font-size: 13px; }
+
+    .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+    .toolbar .search { flex: 1; min-width: 240px; max-width: 520px; }
+    .table-wrap { width: 100%; overflow: auto; border-radius: var(--radius); border: 1px solid var(--line); background: #fff; }
+    table { width: 100%; border-collapse: collapse; min-width: 820px; }
+    th, td { padding: 12px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+    th { background: #f8fafc; color: #475569; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; position: sticky; top: 0; z-index: 1; }
+    tr:hover td { background: #f8fbff; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 900; background: #eef2ff; color: #3730a3; }
+    .pill-ok { background: #dcfce7; color: #166534; }
+    .pill-warn { background: #fef3c7; color: #92400e; }
+    .pill-danger { background: #fee2e2; color: #991b1b; }
+
+    .pos-layout { display: grid; grid-template-columns: minmax(0, 1.35fr) 420px; gap: 18px; align-items: start; }
+    .scan-box { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; margin-bottom: 14px; }
+    .scan-input { font-size: 21px; min-height: 58px; border-radius: 18px; }
+    .cart-list { display: grid; gap: 10px; }
+    .cart-item { display: grid; grid-template-columns: 1fr 110px 100px 44px; gap: 10px; align-items: center; padding: 12px; border: 1px solid var(--line); border-radius: 16px; background: #fff; }
+    .cart-item h4 { margin: 0 0 4px; font-size: 15px; }
+    .cart-item p { margin: 0; color: var(--muted); font-size: 13px; }
+    .cart-item input { padding: 10px; text-align: center; }
+    .total-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px dashed var(--line); }
+    .total-final { font-size: 28px; font-weight: 950; }
+    .payment-box { background: var(--surface-2); border-radius: 16px; padding: 14px; margin-top: 14px; }
+    .payment-box .total-row:last-of-type { border-bottom: none; }
+    .mixed-add-row { display: grid; grid-template-columns: 1fr 120px auto; gap: 8px; align-items: end; }
+    .mixed-add-row .btn-icon { align-self: end; }
+    table.mini-table { min-width: 0; width: 100%; }
+    table.mini-table th, table.mini-table td { padding: 8px 6px; font-size: 13.5px; }
+    .quick-products { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; max-height: 420px; overflow: auto; padding-right: 4px; }
+    .quick-product { min-height: 88px; border-radius: 16px; background: #fff; border: 1px solid var(--line); padding: 12px; text-align: left; }
+    .quick-product strong { display: block; margin-bottom: 6px; }
+    .quick-product span { color: var(--muted); font-size: 13px; }
+
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .form-grid .full { grid-column: 1 / -1; }
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, .48); display: none; align-items: center; justify-content: center; padding: 18px; z-index: 60; }
+    .modal-backdrop.show { display: flex; }
+    .modal { width: min(920px, 100%); max-height: 92vh; overflow: auto; background: #fff; border-radius: 24px; box-shadow: 0 30px 80px rgba(15,23,42,.3); padding: 20px; animation: modalIn .2s ease both; }
+    @keyframes modalIn { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: scale(1); } }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+    .modal-title { font-size: 19px; font-weight: 950; margin: 0; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+
+    #scannerBackdrop { z-index: 75; }
+    .scanner-modal { width: min(480px, 100%); }
+    .scanner-help { margin-top: 10px; font-size: 13.5px; line-height: 1.5; }
+    .scanner-help.warn { color: #92400e; background: #fef3c7; padding: 10px 12px; border-radius: 12px; }
+    .scanner-help.danger { color: #991b1b; background: #fee2e2; padding: 10px 12px; border-radius: 12px; }
+    .scanner-manual { display: flex; gap: 8px; margin-top: 14px; }
+    .btn-scan { background: #eef2ff; color: var(--primary-2); }
+    .btn-scan:hover { background: #dbeafe; }
+
+    .toast-wrap { position: fixed; right: 18px; bottom: 18px; z-index: 90; display: grid; gap: 10px; width: min(380px, calc(100vw - 36px)); }
+    .toast { padding: 14px 16px; border-radius: 16px; color: #fff; box-shadow: var(--shadow); animation: toastIn .2s ease both; }
+    .toast.success { background: #16a34a; }
+    .toast.error { background: #dc2626; }
+    .toast.info { background: #2563eb; }
+    @keyframes toastIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .loader { position: fixed; inset: 0; background: rgba(246,248,251,.78); backdrop-filter: blur(6px); display: none; align-items: center; justify-content: center; z-index: 80; }
+    .loader.show { display: flex; }
+    .spinner { width: 46px; height: 46px; border-radius: 50%; border: 4px solid #bfdbfe; border-top-color: var(--primary); animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .setup-screen { position: fixed; inset: 0; background: var(--bg); display: none; align-items: center; justify-content: center; z-index: 500; padding: 20px; overflow: auto; }
+    .setup-screen.show { display: flex; }
+    .setup-card { background: #fff; border-radius: var(--radius); box-shadow: var(--shadow); padding: 28px; width: min(440px, 100%); }
+
+    #receiptPrintArea { position: fixed; top: -9999px; left: -9999px; width: 300px; }
+    @media print {
+      body > *:not(#receiptPrintArea) { display: none !important; }
+      #receiptPrintArea { position: static; width: 100%; }
+      #receiptPrintArea h2 { text-align: center; }
+      #receiptPrintArea table { width: 100%; border-collapse: collapse; }
+      #receiptPrintArea td { padding: 4px 0; border-bottom: 1px dashed #ccc; }
+      #receiptPrintArea .receipt-total { font-size: 18px; font-weight: bold; text-align: right; }
+    }
+    .camera-panel { display: none; margin-top: 12px; }
+    .camera-panel.show { display: block; }
+    video { width: 100%; border-radius: 16px; background: #0f172a; max-height: 300px; object-fit: cover; }
+    .empty { padding: 34px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: var(--radius); background: rgba(255,255,255,.72); }
+
+    @media (max-width: 1120px) {
+      .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .pos-layout { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 820px) {
+      body { overflow: auto; }
+      .app { display: block; height: auto; min-height: 100%; }
+      .sidebar { position: fixed; inset: 0 auto 0 0; width: min(86vw, 320px); transform: translateX(-105%); box-shadow: var(--shadow); }
+      .sidebar.open { transform: translateX(0); }
+      .mobile-menu { display: inline-flex; }
+      .main { min-height: 100vh; }
+      .topbar { height: auto; padding: 12px; align-items: flex-start; }
+      .content { padding: 14px; }
+      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+      .form-grid { grid-template-columns: 1fr; }
+      .scan-box { grid-template-columns: 1fr; }
+      .cart-item { grid-template-columns: 1fr 92px 86px 42px; }
+      .page-title { font-size: 19px; }
+      .toolbar .search { min-width: 100%; }
+      .mixed-add-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="setup-screen" id="setupScreen">
+    <div class="setup-card">
+      <div class="brand-icon" style="margin:0 auto 14px"><span class="material-icons">inventory_2</span></div>
+      <h2 style="text-align:center;margin:0 0 6px">Sistema de Stock</h2>
+      <p class="muted" style="text-align:center;margin:0 0 20px">Conecta esta pantalla con tu Google Apps Script</p>
+      <form id="setupForm">
+        <label>URL de la Web App (termina en /exec)</label>
+        <input id="setupUrlInput" type="url" placeholder="https://script.google.com/macros/s/XXXXXXXX/exec" required>
+        <label style="margin-top:14px">Token de API (opcional)</label>
+        <input id="setupTokenInput" type="text" placeholder="Solo si configuraste API_TOKEN en la hoja Configuraciones">
+        <p class="scanner-help danger" id="setupError" style="display:none"></p>
+        <div class="actions" style="margin-top:18px">
+          <button class="btn btn-ghost" type="button" id="setupCancelBtn">Cancelar</button>
+          <button class="btn btn-primary" type="submit" style="flex:1;min-height:50px">Conectar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div class="app">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-icon"><span class="material-icons">inventory_2</span></div>
+        <div>
+          <h1>Sistema de Stock</h1>
+          <p>Control + POS</p>
+        </div>
+      </div>
+      <nav class="nav" id="nav">
+        <button class="active" data-view="dashboard"><span class="material-icons">dashboard</span>Dashboard</button>
+        <button data-view="pos"><span class="material-icons">point_of_sale</span>Punto de venta</button>
+        <button data-view="products"><span class="material-icons">inventory</span>Productos</button>
+        <button data-view="entries"><span class="material-icons">add_box</span>Entradas</button>
+        <button data-view="exits"><span class="material-icons">indeterminate_check_box</span>Salidas</button>
+        <button data-view="movements"><span class="material-icons">sync_alt</span>Movimientos</button>
+        <button data-view="categories"><span class="material-icons">category</span>Categorias</button>
+        <button data-view="suppliers"><span class="material-icons">local_shipping</span>Proveedores</button>
+        <button data-view="customers"><span class="material-icons">groups</span>Clientes</button>
+        <button data-view="reports"><span class="material-icons">bar_chart</span>Reportes</button>
+        <button data-view="settings"><span class="material-icons">settings</span>Config y backup</button>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="btn btn-icon btn-ghost mobile-menu" id="openSidebar"><span class="material-icons">menu</span></button>
+          <div>
+            <h2 class="page-title" id="pageTitle">Dashboard</h2>
+            <p class="page-subtitle" id="pageSubtitle">Resumen general del negocio</p>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-ghost" id="refreshBtn"><span class="material-icons">refresh</span>Actualizar</button>
+          <button class="btn btn-primary" id="quickSaleBtn"><span class="material-icons">point_of_sale</span>Venta</button>
+        </div>
+      </header>
+
+      <section class="content">
+        <section class="view active" id="view-dashboard">
+          <div class="grid grid-4" id="dashboardStats"></div>
+          <div class="grid grid-2" style="margin-top:16px">
+            <div class="card">
+              <div class="card-header"><h3 class="card-title">Ultimos movimientos</h3></div>
+              <div id="lastMovements"></div>
+            </div>
+            <div class="card">
+              <div class="card-header"><h3 class="card-title">Alertas importantes</h3><button class="btn btn-ghost" onclick="refreshAlerts()">Actualizar</button></div>
+              <div id="alertList"></div>
+            </div>
+            <div class="card">
+              <div class="card-header"><h3 class="card-title">Productos mas vendidos</h3></div>
+              <div id="topProducts"></div>
+            </div>
+            <div class="card">
+              <div class="card-header"><h3 class="card-title">Acciones rapidas</h3></div>
+              <div class="grid grid-2">
+                <button class="btn btn-primary" onclick="showView('pos')"><span class="material-icons">point_of_sale</span>Nueva venta</button>
+                <button class="btn btn-success" onclick="openProductForm()"><span class="material-icons">add</span>Producto</button>
+                <button class="btn btn-ghost" onclick="showView('entries')"><span class="material-icons">add_box</span>Entrada</button>
+                <button class="btn btn-warning" onclick="showView('exits')"><span class="material-icons">remove_circle</span>Salida</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="view-pos">
+          <div class="pos-layout">
+            <div class="grid">
+              <div class="card">
+                <div class="card-header">
+                  <h3 class="card-title">Escanear o buscar producto</h3>
+                  <span class="pill">USB / Bluetooth / Camara</span>
+                </div>
+                <div class="scan-box">
+                  <input class="scan-input" id="barcodeInput" autocomplete="off" inputmode="search" placeholder="Escanee codigo o escriba nombre / ID y Enter">
+                  <button class="btn btn-primary" id="addScanBtn"><span class="material-icons">add_shopping_cart</span>Agregar</button>
+                  <button class="btn btn-scan" id="cameraBtn"><span class="material-icons">photo_camera</span>Escanear con camara</button>
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-header"><h3 class="card-title">Productos rapidos</h3><input style="max-width:280px" id="quickSearch" placeholder="Filtrar productos"></div>
+                <div class="quick-products" id="quickProducts"></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Venta actual</h3>
+                <button class="btn btn-danger" id="clearCartBtn"><span class="material-icons">delete</span>Cancelar</button>
+              </div>
+              <div class="cart-list" id="cartList"></div>
+              <div style="margin-top:16px">
+                <div class="total-row"><span>Subtotal</span><strong id="saleSubtotal">$ 0,00</strong></div>
+                <div class="total-row"><span>Descuento</span><input id="saleDiscount" type="number" min="0" step="0.01" value="0" style="max-width:150px;text-align:right"></div>
+                <div class="total-row"><span>Total</span><strong class="total-final" id="saleTotal">$ 0,00</strong></div>
+                <div style="margin-top:12px">
+                  <label>Metodo de pago</label>
+                  <select id="paymentMethod">
+                    <option>Efectivo</option><option>Debito</option><option>Credito</option><option>Transferencia</option><option>Mercado Pago</option><option>Otro</option><option>Pago mixto</option>
+                  </select>
+                </div>
+                <div class="payment-box" id="simplePaymentBox">
+                  <div class="total-row"><span>Total a cobrar</span><strong id="paymentTotalDisplay">$ 0,00</strong></div>
+                  <div style="margin-top:10px">
+                    <label>Monto recibido</label>
+                    <input id="amountReceived" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00">
+                  </div>
+                  <div class="total-row"><span>Vuelto</span><strong id="changeDisplay">$ 0,00</strong></div>
+                  <div style="margin-top:8px"><span class="pill" id="paymentStatus">Agrega productos a la venta</span></div>
+                </div>
+                <div class="payment-box" id="mixedPaymentBox" style="display:none">
+                  <div class="total-row"><span>Total a cobrar</span><strong id="mixedTotalDisplay">$ 0,00</strong></div>
+                  <div class="mixed-add-row">
+                    <div><label>Metodo</label><select id="mixedPaymentMethod"><option>Efectivo</option><option>Debito</option><option>Credito</option><option>Transferencia</option><option>Mercado Pago</option><option>Otro</option></select></div>
+                    <div><label>Monto</label><input id="mixedPaymentAmount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00"></div>
+                    <button type="button" class="btn btn-primary btn-icon" id="addMixedPaymentBtn" title="Agregar pago"><span class="material-icons">add</span></button>
+                  </div>
+                  <div class="table-wrap" style="margin-top:12px">
+                    <table class="mini-table"><thead><tr><th>Metodo</th><th>Monto</th><th></th></tr></thead><tbody id="mixedPaymentsTable"></tbody></table>
+                  </div>
+                  <div class="total-row" style="margin-top:10px"><span>Total pagado</span><strong id="mixedPaidDisplay">$ 0,00</strong></div>
+                  <div class="total-row"><span>Falta pagar</span><strong id="mixedMissingDisplay">$ 0,00</strong></div>
+                  <div class="total-row"><span>Vuelto</span><strong id="mixedChangeDisplay">$ 0,00</strong></div>
+                  <div style="margin-top:8px"><span class="pill" id="mixedPaymentStatus">Agrega al menos un pago</span></div>
+                </div>
+                <div style="margin-top:12px">
+                  <label>Cliente opcional</label>
+                  <select id="saleCustomer"></select>
+                </div>
+                <button class="btn btn-success" id="confirmSaleBtn" style="width:100%;margin-top:16px;min-height:56px;font-size:17px"><span class="material-icons">check_circle</span>Confirmar venta</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="view-products">
+          <div class="toolbar">
+            <input class="search" id="productSearch" placeholder="Buscar por nombre, codigo o ID">
+            <div class="actions">
+              <button class="btn btn-scan" id="productScanSearchBtn"><span class="material-icons">photo_camera</span>Escanear con camara</button>
+              <button class="btn btn-primary" onclick="openProductForm()"><span class="material-icons">add</span>Nuevo producto</button>
+            </div>
+          </div>
+          <div class="table-wrap"><table><thead><tr><th>ID</th><th>Codigo</th><th>Nombre</th><th>Categoria</th><th>Compra</th><th>Venta</th><th>Stock</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="productsTable"></tbody></table></div>
+        </section>
+
+        <section class="view" id="view-entries">
+          <div class="card"><div class="card-header"><h3 class="card-title">Nueva entrada de stock</h3></div><form id="entryForm" class="form-grid"></form></div>
+        </section>
+
+        <section class="view" id="view-exits">
+          <div class="card"><div class="card-header"><h3 class="card-title">Nueva salida de stock</h3></div><form id="exitForm" class="form-grid"></form></div>
+        </section>
+
+        <section class="view" id="view-movements">
+          <div class="toolbar"><button class="btn btn-ghost" onclick="loadMovements()"><span class="material-icons">refresh</span>Actualizar</button></div>
+          <div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Producto</th><th>Tipo</th><th>Cantidad</th><th>Stock anterior</th><th>Stock nuevo</th><th>Usuario</th><th>Observaciones</th></tr></thead><tbody id="movementsTable"></tbody></table></div>
+        </section>
+
+        <section class="view" id="view-categories">
+          <div class="toolbar"><button class="btn btn-primary" onclick="openCategoryForm()"><span class="material-icons">add</span>Nueva categoria</button></div>
+          <div class="table-wrap"><table><thead><tr><th>ID</th><th>Nombre</th><th>Color</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="categoriesTable"></tbody></table></div>
+        </section>
+
+        <section class="view" id="view-suppliers">
+          <div class="toolbar"><button class="btn btn-primary" onclick="openSupplierForm()"><span class="material-icons">add</span>Nuevo proveedor</button></div>
+          <div class="table-wrap"><table><thead><tr><th>ID</th><th>Nombre</th><th>Telefono</th><th>Email</th><th>Direccion</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="suppliersTable"></tbody></table></div>
+        </section>
+
+        <section class="view" id="view-customers">
+          <div class="toolbar"><button class="btn btn-primary" onclick="openCustomerForm()"><span class="material-icons">add</span>Nuevo cliente</button></div>
+          <div class="table-wrap"><table><thead><tr><th>ID</th><th>Nombre</th><th>Telefono</th><th>Email</th><th>CUIT/DNI</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="customersTable"></tbody></table></div>
+        </section>
+
+        <section class="view" id="view-reports">
+          <div class="card">
+            <div class="form-grid">
+              <div><label>Desde</label><input type="date" id="reportFrom"></div>
+              <div><label>Hasta</label><input type="date" id="reportTo"></div>
+              <div class="full actions"><button class="btn btn-primary" onclick="loadReports()"><span class="material-icons">bar_chart</span>Generar reportes</button></div>
+            </div>
+          </div>
+          <div id="reportsContent" style="margin-top:16px"></div>
+        </section>
+
+        <section class="view" id="view-settings">
+          <div class="grid grid-2">
+            <div class="card">
+              <div class="card-header"><h3 class="card-title">Configuraciones</h3></div>
+              <form id="settingsForm" class="form-grid"></form>
+            </div>
+            <div class="card">
+              <div class="card-header"><h3 class="card-title">Backups</h3><button class="btn btn-primary" onclick="createBackup()"><span class="material-icons">backup</span>Crear backup</button></div>
+              <div id="backupList"></div>
+            </div>
+            <div class="card">
+              <div class="card-header"><h3 class="card-title">Conexion con la API</h3></div>
+              <p class="muted" style="margin:0 0 12px">URL actual: <strong id="settingsApiUrl"></strong></p>
+              <button class="btn btn-ghost" onclick="showSetupScreen('')"><span class="material-icons">link</span>Cambiar conexion</button>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal">
+      <div class="modal-header"><h3 class="modal-title" id="modalTitle"></h3><button class="btn btn-icon btn-ghost" onclick="closeModal()"><span class="material-icons">close</span></button></div>
+      <div id="modalBody"></div>
+      <div class="modal-footer" id="modalFooter"></div>
+    </div>
+  </div>
+  <div class="modal-backdrop" id="scannerBackdrop">
+    <div class="modal scanner-modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Escanear con camara</h3>
+        <button class="btn btn-icon btn-ghost" id="scannerCloseBtn"><span class="material-icons">close</span></button>
+      </div>
+      <div class="camera-panel show">
+        <video id="scannerVideo" autoplay playsinline muted></video>
+        <p class="scanner-help" id="scannerHelp">Solicitando acceso a la cámara...</p>
+        <p class="scanner-help" id="scannerGuide" style="display:none"></p>
+      </div>
+      <div class="scanner-manual">
+        <input id="scannerManualInput" placeholder="O escribi / pega el codigo aqui" autocomplete="off">
+        <button class="btn btn-primary" id="scannerManualBtn">Usar codigo</button>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="scannerOpenTabBtn" style="display:none">Abrir aplicacion en nueva pestana</button>
+        <button class="btn btn-ghost" id="scannerCancelBtn">Cancelar</button>
+      </div>
+    </div>
+  </div>
+  <div class="loader" id="loader"><div class="spinner"></div></div>
+  <div class="toast-wrap" id="toastWrap"></div>
+  <div id="receiptPrintArea"></div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const INITIAL_PAGE = urlParams.get('page') || '';
+    const INITIAL_ACTION = urlParams.get('action') || '';
+
+    /* ============================================================
+       CONEXION A LA API (Apps Script desplegado como Web App)
+       La URL y el token se guardan en localStorage: este HTML es un
+       sitio estatico (ej. GitHub Pages) que no sabe de antemano a
+       que backend apunta.
+       ============================================================ */
+    const API_STORAGE_KEYS = { url: 'stockApiUrl', token: 'stockApiToken' };
+    const apiConfig = {
+      url: (localStorage.getItem(API_STORAGE_KEYS.url) || '').trim(),
+      token: (localStorage.getItem(API_STORAGE_KEYS.token) || '').trim()
+    };
+
+    function saveApiConfig(url, token) {
+      apiConfig.url = (url || '').trim().replace(/\/+$/, '');
+      apiConfig.token = (token || '').trim();
+      localStorage.setItem(API_STORAGE_KEYS.url, apiConfig.url);
+      localStorage.setItem(API_STORAGE_KEYS.token, apiConfig.token);
+    }
+
+    const state = {
+      app: {}, dashboard: {}, products: [], categories: [], suppliers: [], customers: [], alerts: [], settings: {},
+      cart: [], currentView: 'dashboard', lastSale: null, lastScan: { value: '', time: 0 }, amountReceivedTouched: false,
+      mixedPayments: []
+    };
+
+    const SCAN_FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'qr_code'];
+    const scanner = {
+      stream: null, detector: null, timer: null, active: false, done: false, lastCode: '', onResult: null
+    };
+
+    const titles = {
+      dashboard: ['Dashboard', 'Resumen general del negocio'],
+      pos: ['Punto de venta', 'Venta rapida con lector o camara'],
+      products: ['Productos', 'Alta, edicion y control de stock'],
+      entries: ['Entradas', 'Registrar compras o ingresos de stock'],
+      exits: ['Salidas', 'Registrar mermas, ajustes y retiros'],
+      movements: ['Movimientos', 'Historial automatico de stock'],
+      categories: ['Categorias', 'Organizacion de productos'],
+      suppliers: ['Proveedores', 'Datos de proveedores'],
+      customers: ['Clientes', 'Datos de clientes'],
+      reports: ['Reportes', 'Stock, ventas, ingresos y ganancia'],
+      settings: ['Config y backup', 'Preferencias y copias de seguridad']
+    };
+
+    document.addEventListener('DOMContentLoaded', bootstrap);
+
+    function bootstrap() {
+      bindEvents();
+      bindSetupScreen();
+      if (!apiConfig.url) {
+        showSetupScreen('');
+        return;
+      }
+      hideSetupScreen();
+      init();
+    }
+
+    function init() {
+      showLoader(true);
+      callServer('initializeSystem').then(res => {
+        applyInitialData(res.data);
+        toast(res.message || 'Sistema listo', 'success');
+        applyInitialRoute();
+      }).catch(error => {
+        showError(error);
+        // Si la API no responde puede ser que la URL/token guardados esten mal: ofrecemos reconectar.
+        showSetupScreen(error && error.message ? error.message : '');
+      }).finally(() => showLoader(false));
+      diagnoseCameraAccess();
+    }
+
+    function showSetupScreen(errorMessage) {
+      document.getElementById('setupUrlInput').value = apiConfig.url;
+      document.getElementById('setupTokenInput').value = apiConfig.token;
+      document.getElementById('setupCancelBtn').style.display = apiConfig.url ? 'inline-flex' : 'none';
+      const errorEl = document.getElementById('setupError');
+      errorEl.textContent = errorMessage || '';
+      errorEl.style.display = errorMessage ? 'block' : 'none';
+      document.getElementById('setupScreen').classList.add('show');
+      setTimeout(() => document.getElementById('setupUrlInput').focus(), 50);
+    }
+
+    function hideSetupScreen() {
+      document.getElementById('setupScreen').classList.remove('show');
+    }
+
+    function bindSetupScreen() {
+      document.getElementById('setupForm').addEventListener('submit', event => {
+        event.preventDefault();
+        const url = document.getElementById('setupUrlInput').value.trim();
+        const token = document.getElementById('setupTokenInput').value.trim();
+        if (!/^https:\/\/script\.google(usercontent)?\.com\/.*\/exec$/i.test(url)) {
+          const errorEl = document.getElementById('setupError');
+          errorEl.textContent = 'La URL debe ser la de tu Web App publicada y terminar en /exec.';
+          errorEl.style.display = 'block';
+          return;
+        }
+        saveApiConfig(url, token);
+        hideSetupScreen();
+        init();
+      });
+      const cancelBtn = document.getElementById('setupCancelBtn');
+      if (cancelBtn) cancelBtn.addEventListener('click', () => { if (apiConfig.url) hideSetupScreen(); });
+    }
+
+    function applyInitialRoute() {
+      if (!INITIAL_PAGE || !titles[INITIAL_PAGE] || INITIAL_PAGE === 'dashboard') return;
+      showView(INITIAL_PAGE);
+      if (INITIAL_ACTION !== 'new') return;
+      setTimeout(() => {
+        if (INITIAL_PAGE === 'products') openProductForm();
+        else if (INITIAL_PAGE === 'entries' || INITIAL_PAGE === 'exits') {
+          const form = document.getElementById(INITIAL_PAGE === 'entries' ? 'entryForm' : 'exitForm');
+          const select = form && form.querySelector('select[name="ProductoID"]');
+          if (select) select.focus();
+        }
+      }, 150);
+    }
+
+    function bindEvents() {
+      document.getElementById('nav').addEventListener('click', e => {
+        const btn = e.target.closest('button[data-view]');
+        if (btn) showView(btn.dataset.view);
+      });
+      document.getElementById('openSidebar').addEventListener('click', () => document.getElementById('sidebar').classList.add('open'));
+      document.querySelector('.content').addEventListener('click', () => document.getElementById('sidebar').classList.remove('open'));
+      document.getElementById('refreshBtn').addEventListener('click', refreshAll);
+      document.getElementById('quickSaleBtn').addEventListener('click', () => showView('pos'));
+      document.getElementById('productSearch').addEventListener('input', renderProducts);
+      document.getElementById('quickSearch').addEventListener('input', renderQuickProducts);
+      document.getElementById('barcodeInput').addEventListener('keydown', handleScannerKey);
+      document.getElementById('addScanBtn').addEventListener('click', () => processScan(document.getElementById('barcodeInput').value));
+      document.getElementById('cameraBtn').addEventListener('click', () => openScanner(code => processScan(code)));
+      document.getElementById('productScanSearchBtn').addEventListener('click', () => openScanner(code => {
+        document.getElementById('productSearch').value = code;
+        renderProducts();
+        toast('Codigo escaneado: ' + code, 'success');
+      }));
+      document.getElementById('clearCartBtn').addEventListener('click', clearCart);
+      document.getElementById('saleDiscount').addEventListener('input', renderCart);
+      document.getElementById('paymentMethod').addEventListener('change', onPaymentMethodChange);
+      document.getElementById('amountReceived').addEventListener('input', onAmountReceivedInput);
+      document.getElementById('addMixedPaymentBtn').addEventListener('click', addMixedPayment);
+      document.getElementById('mixedPaymentAmount').addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); addMixedPayment(); }
+      });
+      document.getElementById('confirmSaleBtn').addEventListener('click', confirmSale);
+      document.getElementById('scannerCancelBtn').addEventListener('click', () => closeScanner(null));
+      document.getElementById('scannerCloseBtn').addEventListener('click', () => closeScanner(null));
+      document.getElementById('scannerOpenTabBtn').addEventListener('click', () => {
+        window.open(window.location.href, '_blank');
+      });
+      document.getElementById('scannerManualBtn').addEventListener('click', () => {
+        const value = document.getElementById('scannerManualInput').value.trim();
+        if (!value) { toast('Ingresa un codigo', 'error'); return; }
+        closeScanner(value);
+      });
+      document.getElementById('scannerManualInput').addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); document.getElementById('scannerManualBtn').click(); }
+      });
+      document.addEventListener('visibilitychange', () => { if (document.hidden && scanner.active) closeScanner(null); });
+      setInterval(keepScannerFocus, 900);
+    }
+
+    async function callServer(fn, ...args) {
+      if (!apiConfig.url) {
+        throw new Error('No hay una API conectada. Configura la URL en la pantalla de conexion.');
+      }
+      let response;
+      try {
+        response = await fetch(apiConfig.url, {
+          method: 'POST',
+          // text/plain evita el preflight CORS: Apps Script no responde a OPTIONS.
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: fn, args: args, token: apiConfig.token })
+        });
+      } catch (error) {
+        throw new Error('No se pudo conectar con la API (' + (error && error.message ? error.message : 'error de red') + '). Revisa la URL configurada y tu conexion a internet.');
+      }
+      if (!response.ok) {
+        throw new Error('La API respondio con un error HTTP ' + response.status + '.');
+      }
+      let body;
+      try {
+        body = await response.json();
+      } catch (error) {
+        throw new Error('La API no devolvio JSON valido. Verifica que la URL termine en /exec y que el despliegue este activo.');
+      }
+      if (!body || body.success === false) {
+        throw new Error((body && (body.error || body.message)) || 'Error del servidor.');
+      }
+      return body;
+    }
+
+    function applyInitialData(data) {
+      state.app = data.app || {};
+      state.dashboard = data.dashboard || {};
+      state.products = data.products || [];
+      state.categories = data.categories || [];
+      state.suppliers = data.suppliers || [];
+      state.customers = data.customers || [];
+      state.alerts = data.alerts || [];
+      state.settings = data.settings || {};
+      renderAll();
+    }
+
+    function refreshAll() {
+      showLoader(true);
+      callServer('getInitialData').then(res => {
+        applyInitialData(res.data);
+        toast('Datos actualizados', 'success');
+      }).catch(showError).finally(() => showLoader(false));
+    }
+
+    function renderAll() {
+      renderDashboard();
+      renderProducts();
+      renderQuickProducts();
+      renderCart();
+      renderLists();
+      renderStockForms();
+      renderSettings();
+      loadBackups(false);
+    }
+
+    function showView(view) {
+      if (scanner.active) closeScanner(null);
+      state.currentView = view;
+      document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+      document.getElementById('view-' + view).classList.add('active');
+      document.querySelectorAll('#nav button').forEach(btn => btn.classList.toggle('active', btn.dataset.view === view));
+      document.getElementById('pageTitle').textContent = titles[view][0];
+      document.getElementById('pageSubtitle').textContent = titles[view][1];
+      document.getElementById('sidebar').classList.remove('open');
+      if (view === 'pos') setTimeout(() => document.getElementById('barcodeInput').focus(), 80);
+      if (view === 'movements') loadMovements();
+      if (view === 'settings') loadBackups(false);
+    }
+
+    function renderDashboard() {
+      const d = state.dashboard || {};
+      const stats = [
+        ['inventory_2', d.totalProducts || 0, 'Productos totales', ''],
+        ['warning', d.lowStockProducts || 0, 'Stock bajo', 'warn'],
+        ['remove_shopping_cart', d.outOfStockProducts || 0, 'Sin stock', 'danger'],
+        ['receipt_long', d.todaySales || 0, 'Ventas del dia', ''],
+        ['calendar_month', d.monthSales || 0, 'Ventas del mes', ''],
+        ['payments', money(d.todayIncome), 'Ingresos del dia', 'ok'],
+        ['account_balance_wallet', money(d.monthIncome), 'Ingresos del mes', 'ok']
+      ];
+      document.getElementById('dashboardStats').innerHTML = stats.map(s => `
+        <div class="card stat">
+          <div class="stat-top"><span class="stat-label">${s[2]}</span><div class="stat-icon"><span class="material-icons">${s[0]}</span></div></div>
+          <div class="stat-value">${s[1]}</div>
+        </div>`).join('');
+      renderMiniList('lastMovements', d.lastMovements || [], row => `<strong>${escapeHtml(row.Tipo)}</strong> ${escapeHtml(row.Producto)}<br><span class="muted">${escapeHtml(row.Fecha)} - Cant: ${num(row.Cantidad)}</span>`);
+      renderMiniList('alertList', d.alerts || [], row => `<span class="pill ${row.Prioridad === 'Alta' ? 'pill-danger' : row.Prioridad === 'Media' ? 'pill-warn' : ''}">${escapeHtml(row.Tipo)}</span> ${escapeHtml(row.Producto)}<br><span class="muted">${escapeHtml(row.Mensaje)}</span>`);
+      renderMiniList('topProducts', d.topProducts || [], row => `<strong>${escapeHtml(row.Producto)}</strong><br><span class="muted">${num(row.Cantidad)} unidades - ${money(row.Total)}</span>`);
+    }
+
+    function renderMiniList(id, rows, mapper) {
+      const target = document.getElementById(id);
+      if (!rows.length) { target.innerHTML = '<div class="empty">Sin datos para mostrar</div>'; return; }
+      target.innerHTML = rows.map(row => `<div style="padding:11px 0;border-bottom:1px solid var(--line)">${mapper(row)}</div>`).join('');
+    }
+
+    function renderProducts() {
+      const query = normalize(document.getElementById('productSearch').value || '');
+      const products = state.products.filter(p => !query || normalize(p.ID + ' ' + p.CodigoBarras + ' ' + p.Nombre).includes(query));
+      document.getElementById('productsTable').innerHTML = products.map(p => `
+        <tr>
+          <td>${escapeHtml(p.ID)}</td><td>${escapeHtml(p.CodigoBarras)}</td><td><strong>${escapeHtml(p.Nombre)}</strong><br><span class="muted">${escapeHtml(p.Descripcion || '')}</span></td>
+          <td>${escapeHtml(p.Categoria)}</td><td>${money(p.PrecioCompra)}</td><td>${money(p.PrecioVenta)}</td><td>${stockPill(p)}</td><td>${statusPill(p.Estado)}</td>
+          <td><div class="actions"><button class="btn btn-ghost" onclick="openProductForm('${p.ID}')">Editar</button><button class="btn btn-warning" onclick="toggleProduct('${p.ID}','${p.Estado === 'Activo' ? 'Inactivo' : 'Activo'}')">${p.Estado === 'Activo' ? 'Desactivar' : 'Activar'}</button><button class="btn btn-danger" onclick="deleteProduct('${p.ID}')">Eliminar</button></div></td>
+        </tr>`).join('') || '<tr><td colspan="9"><div class="empty">No hay productos</div></td></tr>';
+    }
+
+    function stockPill(p) {
+      const stock = num(p.Stock), min = num(p.StockMinimo);
+      const cls = stock <= 0 ? 'pill-danger' : (min > 0 && stock < min ? 'pill-warn' : 'pill-ok');
+      return `<span class="pill ${cls}">${stock} ${escapeHtml(p.Unidad || '')}</span>`;
+    }
+
+    function statusPill(status) {
+      const cls = status === 'Activo' ? 'pill-ok' : status === 'Inactivo' ? 'pill-warn' : 'pill-danger';
+      return `<span class="pill ${cls}">${escapeHtml(status || '')}</span>`;
+    }
+
+    function renderQuickProducts() {
+      const q = normalize(document.getElementById('quickSearch').value || '');
+      const products = state.products.filter(p => p.Estado === 'Activo' && num(p.Stock) > 0 && (!q || normalize(p.Nombre + ' ' + p.CodigoBarras).includes(q))).slice(0, 80);
+      document.getElementById('quickProducts').innerHTML = products.map(p => `
+        <button class="quick-product" onclick="addToCart('${p.ID}')"><strong>${escapeHtml(p.Nombre)}</strong><span>${money(p.PrecioVenta)} - Stock ${num(p.Stock)}</span></button>
+      `).join('') || '<div class="empty">Sin productos disponibles</div>';
+    }
+
+    function renderLists() {
+      document.getElementById('categoriesTable').innerHTML = state.categories.map(c => `
+        <tr><td>${escapeHtml(c.ID)}</td><td>${escapeHtml(c.Nombre)}</td><td><span class="pill" style="background:${escapeAttr(c.Color || '#64748b')};color:#fff">${escapeHtml(c.Color || '')}</span></td><td>${statusPill(c.Estado)}</td><td><div class="actions"><button class="btn btn-ghost" onclick="openCategoryForm('${c.ID}')">Editar</button><button class="btn btn-danger" onclick="deleteCategory('${c.ID}')">Eliminar</button></div></td></tr>
+      `).join('') || '<tr><td colspan="5"><div class="empty">Sin categorias</div></td></tr>';
+
+      document.getElementById('suppliersTable').innerHTML = state.suppliers.map(s => `
+        <tr><td>${escapeHtml(s.ID)}</td><td>${escapeHtml(s.Nombre)}</td><td>${escapeHtml(s.Telefono)}</td><td>${escapeHtml(s.Email)}</td><td>${escapeHtml(s.Direccion)}</td><td>${statusPill(s.Estado)}</td><td><div class="actions"><button class="btn btn-ghost" onclick="openSupplierForm('${s.ID}')">Editar</button><button class="btn btn-danger" onclick="deleteSupplier('${s.ID}')">Eliminar</button></div></td></tr>
+      `).join('') || '<tr><td colspan="7"><div class="empty">Sin proveedores</div></td></tr>';
+
+      document.getElementById('customersTable').innerHTML = state.customers.map(c => `
+        <tr><td>${escapeHtml(c.ID)}</td><td>${escapeHtml(c.Nombre)}</td><td>${escapeHtml(c.Telefono)}</td><td>${escapeHtml(c.Email)}</td><td>${escapeHtml(c.CuitDni)}</td><td>${statusPill(c.Estado)}</td><td><div class="actions"><button class="btn btn-ghost" onclick="openCustomerForm('${c.ID}')">Editar</button><button class="btn btn-danger" onclick="deleteCustomer('${c.ID}')">Eliminar</button></div></td></tr>
+      `).join('') || '<tr><td colspan="7"><div class="empty">Sin clientes</div></td></tr>';
+
+      document.getElementById('saleCustomer').innerHTML = '<option value="">Consumidor final</option>' + state.customers.filter(c => c.Estado === 'Activo').map(c => `<option value="${escapeAttr(c.ID)}">${escapeHtml(c.Nombre)}</option>`).join('');
+    }
+
+    function renderStockForms() {
+      const productOptions = state.products.filter(p => p.Estado === 'Activo').map(p => `<option value="${escapeAttr(p.ID)}">${escapeHtml(p.Nombre)} - Stock ${num(p.Stock)}</option>`).join('');
+      document.getElementById('entryForm').innerHTML = `
+        <div><label>Producto</label><select name="ProductoID" required>${productOptions}</select></div>
+        <div><label>Cantidad</label><input name="Cantidad" type="number" min="0.01" step="0.01" required></div>
+        <div><label>Costo</label><input name="Costo" type="number" min="0" step="0.01"></div>
+        <div><label>Proveedor</label><input name="Proveedor" list="supplierNames"></div>
+        <div><label>Responsable</label><input name="Responsable"></div>
+        <div><label>Motivo</label><input name="Motivo" value="Compra"></div>
+        <div class="full"><label>Observaciones</label><textarea name="Observaciones"></textarea></div>
+        <div class="full"><button class="btn btn-success" type="submit">Guardar entrada</button></div>`;
+      document.getElementById('exitForm').innerHTML = `
+        <div><label>Producto</label><select name="ProductoID" required>${productOptions}</select></div>
+        <div><label>Cantidad</label><input name="Cantidad" type="number" min="0.01" step="0.01" required></div>
+        <div><label>Responsable</label><input name="Responsable"></div>
+        <div><label>Motivo</label><input name="Motivo" value="Salida manual"></div>
+        <div class="full"><label>Observaciones</label><textarea name="Observaciones"></textarea></div>
+        <div class="full"><button class="btn btn-warning" type="submit">Guardar salida</button></div>`;
+      document.getElementById('entryForm').onsubmit = e => saveStock(e, 'saveStockEntry');
+      document.getElementById('exitForm').onsubmit = e => saveStock(e, 'saveStockExit');
+      addDatalists();
+    }
+
+    function addDatalists() {
+      let dl = document.getElementById('dynamicDatalists');
+      if (!dl) { dl = document.createElement('div'); dl.id = 'dynamicDatalists'; document.body.appendChild(dl); }
+      dl.innerHTML = `<datalist id="supplierNames">${state.suppliers.map(s => `<option value="${escapeAttr(s.Nombre)}"></option>`).join('')}</datalist><datalist id="categoryNames">${state.categories.map(c => `<option value="${escapeAttr(c.Nombre)}"></option>`).join('')}</datalist>`;
+    }
+
+    function saveStock(event, fn) {
+      event.preventDefault();
+      const data = formData(event.target);
+      showLoader(true);
+      callServer(fn, data).then(res => {
+        toast(res.message, 'success');
+        event.target.reset();
+        refreshAll();
+      }).catch(showError).finally(() => showLoader(false));
+    }
+
+    function handleScannerKey(event) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        processScan(event.target.value);
+      }
+    }
+
+    function processScan(value) {
+      const query = String(value || '').trim();
+      const input = document.getElementById('barcodeInput');
+      input.value = '';
+      input.focus();
+      if (!query) return;
+      const now = Date.now();
+      if (state.lastScan.value === query && now - state.lastScan.time < 450) return;
+      state.lastScan = { value: query, time: now };
+      const localMatch = findLocalProduct(query);
+      if (localMatch) { addProductToCart(localMatch); return; }
+      callServer('findProductForSale', query).then(res => {
+        if (!res.data) {
+          if (confirm('Codigo inexistente. Desea crear el producto?')) openProductForm(null, { CodigoBarras: query });
+          else toast('Producto no encontrado', 'error');
+          return;
+        }
+        addProductToCart(res.data);
+      }).catch(showError).finally(() => input.focus());
+    }
+
+    function findLocalProduct(query) {
+      const norm = normalize(query);
+      const actives = state.products.filter(p => p.Estado === 'Activo');
+      return actives.find(p => normalize(p.CodigoBarras) === norm)
+        || actives.find(p => normalize(p.ID) === norm)
+        || actives.find(p => normalize(p.Nombre) === norm)
+        || null;
+    }
+
+    function addToCart(productId) {
+      const product = state.products.find(p => p.ID === productId);
+      if (product) addProductToCart(product);
+    }
+
+    function addProductToCart(product) {
+      if (num(product.Stock) <= 0) { toast('Producto sin stock', 'error'); return; }
+      const existing = state.cart.find(item => item.productId === product.ID);
+      if (existing) {
+        if (existing.quantity + 1 > num(product.Stock)) { toast('Stock insuficiente', 'error'); return; }
+        existing.quantity += 1;
+      } else {
+        state.cart.push({ productId: product.ID, code: product.CodigoBarras, name: product.Nombre, price: num(product.PrecioVenta), stock: num(product.Stock), quantity: 1 });
+      }
+      renderCart();
+      toast(product.Nombre + ' agregado', 'success');
+    }
+
+    function renderCart() {
+      const list = document.getElementById('cartList');
+      if (!state.cart.length) list.innerHTML = '<div class="empty">Venta vacia</div>';
+      else list.innerHTML = state.cart.map(item => `
+        <div class="cart-item">
+          <div><h4>${escapeHtml(item.name)}</h4><p>${escapeHtml(item.code)} - ${money(item.price)} - Stock ${num(item.stock)}</p></div>
+          <input type="number" min="1" max="${num(item.stock)}" value="${num(item.quantity)}" onchange="changeCartQty('${item.productId}', this.value)">
+          <strong>${money(item.price * item.quantity)}</strong>
+          <button class="btn btn-icon btn-danger" onclick="removeCartItem('${item.productId}')"><span class="material-icons">close</span></button>
+        </div>`).join('');
+      const subtotal = cartSubtotal();
+      const discount = num(document.getElementById('saleDiscount').value);
+      const total = round2(Math.max(0, subtotal - discount));
+      document.getElementById('saleSubtotal').textContent = money(subtotal);
+      document.getElementById('saleTotal').textContent = money(total);
+      if (document.getElementById('paymentMethod').value === 'Pago mixto') renderMixedPayments();
+      else syncPaymentTotal(total);
+    }
+
+    function changeCartQty(productId, value) {
+      const item = state.cart.find(i => i.productId === productId);
+      if (!item) return;
+      const qty = Math.max(1, num(value));
+      if (qty > item.stock) { toast('Stock insuficiente', 'error'); item.quantity = item.stock; }
+      else item.quantity = qty;
+      renderCart();
+    }
+
+    function removeCartItem(productId) {
+      state.cart = state.cart.filter(item => item.productId !== productId);
+      renderCart();
+    }
+
+    function resetCart() {
+      state.cart = [];
+      state.amountReceivedTouched = false;
+      state.mixedPayments = [];
+      document.getElementById('saleDiscount').value = 0;
+      document.getElementById('amountReceived').value = '';
+      document.getElementById('mixedPaymentAmount').value = '';
+      document.getElementById('paymentMethod').value = 'Efectivo';
+      document.getElementById('simplePaymentBox').style.display = 'block';
+      document.getElementById('mixedPaymentBox').style.display = 'none';
+      renderCart();
+      keepScannerFocus();
+    }
+
+    function clearCart() {
+      if (!state.cart.length || confirm('Cancelar venta actual?')) resetCart();
+    }
+
+    function cartSubtotal() { return state.cart.reduce((sum, item) => sum + (num(item.price) * num(item.quantity)), 0); }
+
+    function currentSaleTotal() {
+      const subtotal = cartSubtotal();
+      const discount = num(document.getElementById('saleDiscount').value);
+      return round2(Math.max(0, subtotal - discount));
+    }
+
+    /* ============================================================
+       COBRO: MONTO RECIBIDO Y VUELTO
+       ============================================================ */
+    function round2(value) { return Math.round((num(value) + Number.EPSILON) * 100) / 100; }
+
+    function onPaymentMethodChange() {
+      const method = document.getElementById('paymentMethod').value;
+      const isMixed = method === 'Pago mixto';
+      document.getElementById('simplePaymentBox').style.display = isMixed ? 'none' : 'block';
+      document.getElementById('mixedPaymentBox').style.display = isMixed ? 'block' : 'none';
+      if (isMixed) {
+        renderMixedPayments();
+        return;
+      }
+      const input = document.getElementById('amountReceived');
+      const total = currentSaleTotal();
+      state.amountReceivedTouched = false;
+      input.value = (method !== 'Efectivo' && total > 0) ? total.toFixed(2) : '';
+      updatePaymentStatus(total);
+    }
+
+    function onAmountReceivedInput() {
+      state.amountReceivedTouched = true;
+      updatePaymentStatus();
+    }
+
+    function syncPaymentTotal(total) {
+      document.getElementById('paymentTotalDisplay').textContent = money(total);
+      const method = document.getElementById('paymentMethod').value;
+      const input = document.getElementById('amountReceived');
+      if (method !== 'Efectivo' && !state.amountReceivedTouched) {
+        input.value = total > 0 ? total.toFixed(2) : '';
+      }
+      updatePaymentStatus(total);
+    }
+
+    function updatePaymentStatus(total) {
+      if (total === undefined) total = currentSaleTotal();
+      const receivedInput = document.getElementById('amountReceived');
+      const received = round2(receivedInput.value);
+      const changeEl = document.getElementById('changeDisplay');
+      const statusEl = document.getElementById('paymentStatus');
+      const method = document.getElementById('paymentMethod').value;
+      const confirmBtn = document.getElementById('confirmSaleBtn');
+      let change = 0, statusText, statusClass;
+
+      if (total <= 0) {
+        statusText = 'Agrega productos a la venta';
+        statusClass = 'pill';
+      } else if (!receivedInput.value.toString().trim() || received <= 0) {
+        statusText = 'Falta pagar: ' + money(total);
+        statusClass = 'pill pill-warn';
+      } else {
+        const diff = round2(received - total);
+        if (diff < -0.004) {
+          statusText = 'Falta pagar: ' + money(Math.abs(diff));
+          statusClass = 'pill pill-danger';
+        } else if (diff > 0.004) {
+          change = diff;
+          statusText = 'Vuelto: ' + money(diff);
+          statusClass = 'pill pill-ok';
+        } else {
+          statusText = 'Pago exacto';
+          statusClass = 'pill pill-ok';
+        }
+      }
+
+      changeEl.textContent = money(change);
+      statusEl.textContent = statusText;
+      statusEl.className = statusClass;
+
+      const insufficientCash = method === 'Efectivo' && total > 0 && (received < total - 0.004 || !receivedInput.value.toString().trim());
+      confirmBtn.disabled = !state.cart.length || total <= 0 || !method || insufficientCash;
+    }
+
+    /* ============================================================
+       PAGO MIXTO
+       ============================================================ */
+    function addMixedPayment() {
+      const methodSel = document.getElementById('mixedPaymentMethod');
+      const amountInput = document.getElementById('mixedPaymentAmount');
+      const method = methodSel.value;
+      const amount = round2(amountInput.value);
+      if (!amount || amount <= 0) { toast('Ingresa un monto valido', 'error'); amountInput.focus(); return; }
+      state.mixedPayments.push({ method, amount });
+      amountInput.value = '';
+      amountInput.focus();
+      renderMixedPayments();
+    }
+
+    function removeMixedPayment(index) {
+      state.mixedPayments.splice(index, 1);
+      renderMixedPayments();
+    }
+
+    function mixedPaymentsTotals(total) {
+      const paid = round2(state.mixedPayments.reduce((sum, p) => sum + num(p.amount), 0));
+      const cash = round2(state.mixedPayments.filter(p => p.method === 'Efectivo').reduce((sum, p) => sum + num(p.amount), 0));
+      const nonCash = round2(paid - cash);
+      const neededFromCash = round2(Math.max(0, total - nonCash));
+      const change = round2(Math.max(0, cash - neededFromCash));
+      const missing = round2(Math.max(0, total - paid));
+      return { paid, change, missing };
+    }
+
+    function renderMixedPayments() {
+      const total = currentSaleTotal();
+      document.getElementById('mixedTotalDisplay').textContent = money(total);
+
+      const tbody = document.getElementById('mixedPaymentsTable');
+      if (!state.mixedPayments.length) {
+        tbody.innerHTML = '<tr><td colspan="3"><div class="empty" style="padding:14px">Sin pagos agregados</div></td></tr>';
+      } else {
+        tbody.innerHTML = state.mixedPayments.map((p, i) => `
+          <tr>
+            <td>${escapeHtml(p.method)}</td>
+            <td>${money(p.amount)}</td>
+            <td><button type="button" class="btn btn-icon btn-danger" onclick="removeMixedPayment(${i})"><span class="material-icons">close</span></button></td>
+          </tr>`).join('');
+      }
+
+      const { paid, change, missing } = mixedPaymentsTotals(total);
+      document.getElementById('mixedPaidDisplay').textContent = money(paid);
+      document.getElementById('mixedMissingDisplay').textContent = money(missing);
+      document.getElementById('mixedChangeDisplay').textContent = money(change);
+
+      const statusEl = document.getElementById('mixedPaymentStatus');
+      if (!state.mixedPayments.length) {
+        statusEl.textContent = 'Agrega al menos un pago';
+        statusEl.className = 'pill';
+      } else if (missing > 0.004) {
+        statusEl.textContent = 'Falta pagar: ' + money(missing);
+        statusEl.className = 'pill pill-danger';
+      } else if (change > 0.004) {
+        statusEl.textContent = 'Vuelto: ' + money(change);
+        statusEl.className = 'pill pill-ok';
+      } else {
+        statusEl.textContent = 'Pago exacto';
+        statusEl.className = 'pill pill-ok';
+      }
+
+      const confirmBtn = document.getElementById('confirmSaleBtn');
+      confirmBtn.disabled = !state.cart.length || total <= 0 || !state.mixedPayments.length || missing > 0.004;
+    }
+
+    function confirmSale() {
+      const total = currentSaleTotal();
+      const method = document.getElementById('paymentMethod').value;
+
+      if (!state.cart.length) { toast('Agregue productos a la venta', 'error'); return; }
+      if (total <= 0) { toast('El total de la venta debe ser mayor a cero', 'error'); return; }
+      if (!method) { toast('Seleccione un metodo de pago', 'error'); return; }
+
+      const payload = {
+        items: state.cart.map(item => ({ productId: item.productId, quantity: item.quantity, price: item.price })),
+        discount: num(document.getElementById('saleDiscount').value),
+        paymentMethod: method,
+        customerId: document.getElementById('saleCustomer').value
+      };
+
+      if (method === 'Pago mixto') {
+        if (!state.mixedPayments.length) { toast('Agrega al menos un pago parcial', 'error'); return; }
+        const { paid, missing } = mixedPaymentsTotals(total);
+        if (missing > 0.004) {
+          toast('Falta pagar ' + money(missing) + ' para confirmar la venta', 'error');
+          return;
+        }
+        payload.payments = state.mixedPayments.map(p => ({ method: p.method, amount: p.amount }));
+      } else {
+        const receivedInput = document.getElementById('amountReceived');
+        let received = round2(receivedInput.value);
+        if (method === 'Efectivo' && received < total - 0.004) {
+          toast('Falta pagar ' + money(round2(total - received)) + ' para confirmar la venta en efectivo', 'error');
+          receivedInput.focus();
+          return;
+        }
+        if (method !== 'Efectivo' && (!receivedInput.value.toString().trim() || received < total - 0.004)) {
+          received = total;
+        }
+        payload.montoRecibido = received;
+      }
+
+      showLoader(true);
+      callServer('saveSale', payload).then(res => {
+        state.lastSale = res.data;
+        toast(res.message, 'success');
+        resetCart();
+        printReceipt(res.data);
+        refreshAll();
+      }).catch(showError).finally(() => showLoader(false));
+    }
+
+    function printReceipt(sale) {
+      const area = document.getElementById('receiptPrintArea');
+      const payments = Array.isArray(sale.payments) ? sale.payments : [];
+      const paymentsBlock = payments.length > 1
+        ? `<p style="margin-top:8px"><strong>Detalle de pago</strong></p><table>${payments.map(p => `<tr><td>${escapeHtml(p.method)}</td><td style="text-align:right">${money(p.amount)}</td></tr>`).join('')}</table>`
+        : '';
+      area.innerHTML = `
+        <h2>Sistema de Stock</h2>
+        <p>Venta: ${escapeHtml(sale.number)}<br>Fecha: ${escapeHtml(sale.date)}<br>Pago: ${escapeHtml(sale.paymentMethod)}</p>
+        <table>${sale.items.map(i => `<tr><td>${escapeHtml(i.name)} x ${num(i.quantity)}</td><td style="text-align:right">${money(i.subtotal)}</td></tr>`).join('')}</table>
+        <p>Subtotal: ${money(sale.subtotal)}<br>Descuento: ${money(sale.discount)}</p>
+        <p class="receipt-total">Total ${money(sale.total)}</p>
+        ${paymentsBlock}
+        <p>Monto recibido: ${money(sale.montoRecibido)}<br>Vuelto: ${money(sale.vuelto)}</p>`;
+      setTimeout(() => window.print(), 60);
+    }
+
+    function keepScannerFocus() {
+      if (state.currentView !== 'pos') return;
+      if (document.getElementById('modalBackdrop').classList.contains('show')) return;
+      if (document.getElementById('scannerBackdrop').classList.contains('show')) return;
+      const active = document.activeElement;
+      if (!active || !['INPUT', 'SELECT', 'TEXTAREA'].includes(active.tagName) || active.id === 'barcodeInput') {
+        document.getElementById('barcodeInput').focus();
+      }
+    }
+
+    /* ============================================================
+       ESCANER DE CAMARA (reutilizable desde POS y Productos)
+       ============================================================ */
+    function setScannerHelp(text, tone) {
+      const help = document.getElementById('scannerHelp');
+      help.textContent = text;
+      help.className = 'scanner-help' + (tone ? ' ' + tone : '');
+    }
+
+    function setScannerGuide(text) {
+      const guide = document.getElementById('scannerGuide');
+      guide.textContent = text || '';
+      guide.style.display = text ? 'block' : 'none';
+    }
+
+    /**
+     * Punto de entrada del escaner. getUserMedia() se invoca como PRIMERA accion del click,
+     * de forma sincronica, sin ninguna validacion previa de contexto: si el navegador puede
+     * pedir permiso, el dialogo nativo aparece. Todo diagnostico ocurre despues de un fallo real.
+     */
+    function openScanner(onResult) {
+      stopScannerStream(); // evita streams duplicados si quedo uno abierto de antes
+
+      // PRIMERA accion: crear la promesa de getUserMedia dentro del gesto del click.
+      console.log("CTX location.href:", window.location.href);
+      console.log("CTX isSecureContext:", window.isSecureContext);
+      console.log("CTX userAgent:", navigator.userAgent);
+      console.log("CTX mediaDevices:", navigator.mediaDevices);
+      console.log("CTX getUserMedia fn:", navigator.mediaDevices?.getUserMedia);
+      console.log("CTX isTopFrame:", window.self === window.top);
+
+      if (navigator.permissions) {
+        try {
+          navigator.permissions.query({ name: "camera" }).then(permission => {
+            console.log("Camera permission:", permission.state);
+          }).catch(e => {
+            console.log("Permissions API not available", e);
+          });
+        } catch (e) {
+          console.log("Permissions API not available", e);
+        }
+      }
+
+      let streamPromise = null;
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        console.log("BEFORE getUserMedia (facingMode: environment)");
+        streamPromise = navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+          audio: false
+        });
+        console.log("getUserMedia promise created (facingMode: environment)");
+      }
+
+      scanner.onResult = onResult;
+      scanner.done = false;
+      scanner.active = true;
+      scanner.lastCode = '';
+      document.getElementById('scannerManualInput').value = '';
+      document.getElementById('scannerOpenTabBtn').style.display = 'none';
+      setScannerGuide('');
+      setScannerHelp('Solicitando acceso a la cámara...', '');
+      document.getElementById('scannerBackdrop').classList.add('show');
+
+      if (!streamPromise) {
+        handleCameraFailure({ name: 'Unsupported' });
+        return;
+      }
+
+      streamPromise
+        .catch(error => {
+          console.error("getUserMedia FAILED (first)");
+          console.error(error);
+          console.error("error.name:", error.name);
+          console.error("error.message:", error.message);
+          // La camara trasera exacta no existe: reintentar con cualquier camara.
+          if (error && error.name === 'OverconstrainedError') {
+            console.log("BEFORE getUserMedia (fallback video: true)");
+            const fallbackPromise = navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            console.log("getUserMedia promise created (fallback video: true)");
+            return fallbackPromise;
+          }
+          throw error;
+        })
+        .then(stream => {
+          console.log("STREAM ACQUIRED", stream);
+          if (!scanner.active) { stream.getTracks().forEach(track => track.stop()); return; }
+          scanner.stream = stream;
+          return attachStreamAndStart();
+        })
+        .catch(error => {
+          console.error("getUserMedia FAILED (final)");
+          console.error(error);
+          console.error("error.name:", error.name);
+          console.error("error.message:", error.message);
+          handleCameraFailure(error);
+        });
+    }
+
+    async function attachStreamAndStart() {
+      const video = document.getElementById('scannerVideo');
+      video.srcObject = scanner.stream;
+      try { await video.play(); } catch (e) {}
+
+      await waitForVideoReady(video);
+      if (!scanner.active) return;
+
+      setScannerHelp('Cámara activa. Apuntá al código de barras.', 'ok');
+
+      const detector = await createBarcodeDetector();
+      if (!scanner.active) return;
+      if (!detector) {
+        setScannerHelp('Tu navegador no soporta escaneo automático por cámara. Usá Chrome en Android, lector físico USB/Bluetooth o ingreso manual.', 'warn');
+        return;
+      }
+      scanner.detector = detector;
+      scanLoop();
+    }
+
+    function waitForVideoReady(video) {
+      return new Promise(resolve => {
+        const isReady = () => video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0;
+        if (isReady()) { resolve(); return; }
+        const onReady = () => {
+          if (isReady()) {
+            video.removeEventListener('loadedmetadata', onReady);
+            video.removeEventListener('loadeddata', onReady);
+            resolve();
+          }
+        };
+        video.addEventListener('loadedmetadata', onReady);
+        video.addEventListener('loadeddata', onReady);
+        setTimeout(resolve, 1500); // resguardo: nunca colgar la espera si el evento no llega
+      });
+    }
+
+    function cameraErrorMessage(error) {
+      const name = error && error.name;
+      if (name === 'NotAllowedError') return 'No se concedió permiso para usar la cámara. Revisá los permisos del navegador y volvé a intentarlo.';
+      if (name === 'NotFoundError') return 'No se encontró ninguna cámara disponible en este dispositivo.';
+      if (name === 'NotReadableError') return 'La cámara está siendo utilizada por otra aplicación o no puede iniciarse.';
+      if (name === 'SecurityError') return 'El navegador bloqueó la cámara por una restricción de seguridad.';
+      if (name === 'AbortError') return 'El acceso a la cámara fue interrumpido. Volvé a intentarlo.';
+      if (name === 'Unsupported') return 'Este dispositivo no permite acceder a la cámara desde el navegador. Usá un lector físico USB/Bluetooth o ingreso manual.';
+      return 'No se pudo acceder a la cámara (' + (name || 'error desconocido') + '). Usá un lector físico USB/Bluetooth o ingreso manual.';
+    }
+
+    function isEmbeddedContext() {
+      try { return window.self !== window.top; } catch (e) { return true; }
+    }
+
+    function permissionBlockedGuide() {
+      const ua = navigator.userAgent || '';
+      const isAndroid = /Android/i.test(ua);
+      const isIOS = /iPhone|iPad|iPod/i.test(ua);
+      const isEdge = /Edg\//i.test(ua);
+      const isChrome = /Chrome\/|CriOS\//i.test(ua) && !isEdge;
+      const isSafari = /Safari/i.test(ua) && !/Chrome|CriOS|Edg/i.test(ua);
+
+      if (isAndroid) return 'Entrá en Configuración del sitio > Cámara > Permitir y recargá la aplicación.';
+      if (isIOS && isSafari) return 'Entrá en Ajustes > Safari > Cámara, permití el acceso y volvé a abrir la aplicación.';
+      if (!isAndroid && !isIOS && (isChrome || isEdge)) return 'Hacé clic en el candado de la barra de direcciones, habilitá Cámara y recargá la página.';
+      return '';
+    }
+
+    function classifyUrl(url) {
+      if (/\/exec(\?|$)/.test(url)) return 'web-app-publicada (/exec)';
+      if (/\/dev(\?|$)/.test(url)) return 'vista-previa-de-desarrollo (/dev)';
+      if (/script\.google\.com|docs\.google\.com/.test(url)) return 'editor-o-dialogo-interno-de-apps-script';
+      return 'desconocido';
+    }
+
+    async function diagnoseCameraAccess() {
+      const info = {
+        hasMediaDevices: !!navigator.mediaDevices,
+        hasGetUserMedia: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
+        isSecureContext: !!window.isSecureContext,
+        isEmbedded: isEmbeddedContext(),
+        hasBarcodeDetector: 'BarcodeDetector' in window,
+        userAgent: navigator.userAgent,
+        url: window.location.href,
+        urlKind: classifyUrl(window.location.href),
+        permissionState: 'no-consultado'
+      };
+      try {
+        if (navigator.permissions && navigator.permissions.query) {
+          const status = await navigator.permissions.query({ name: 'camera' });
+          info.permissionState = status.state;
+        }
+      } catch (error) {
+        info.permissionState = 'no-disponible-en-este-navegador';
+      }
+      console.log('[Diagnostico camara]', info);
+      return info;
+    }
+
+    /**
+     * Se ejecuta SOLO cuando getUserMedia() fallo de verdad. Muestra siempre el mensaje
+     * especifico del error. El aviso de iframe/vista-previa es un complemento que solo
+     * aparece si el fallo es de permisos/seguridad Y el permiso no quedo simplemente
+     * denegado por el usuario en el dialogo (permissions.query lo distingue cuando existe).
+     */
+    async function handleCameraFailure(error) {
+      console.error('[Escaner] Error de camara:', error);
+      diagnoseCameraAccess();
+
+      setScannerHelp(cameraErrorMessage(error), 'danger');
+
+      const name = error && error.name;
+      const openTabBtn = document.getElementById('scannerOpenTabBtn');
+      openTabBtn.style.display = 'none';
+      let guide = '';
+
+      if (name === 'NotAllowedError' || name === 'SecurityError') {
+        let permissionState = 'unknown';
+        try {
+          if (navigator.permissions && navigator.permissions.query) {
+            permissionState = (await navigator.permissions.query({ name: 'camera' })).state;
+          }
+        } catch (e) {}
+
+        if (permissionState === 'denied') {
+          // El usuario (o el sitio) tiene el permiso bloqueado: dar instrucciones del navegador.
+          guide = permissionBlockedGuide();
+        } else if (isEmbeddedContext()) {
+          // El permiso no esta denegado pero fallo igual: probablemente esta pagina esta
+          // embebida dentro de otro sitio/iframe que bloquea la camara por Permissions-Policy.
+          guide = 'Si el navegador no mostró la ventana de permiso, esta página puede estar embebida dentro de otro sitio o panel que bloquea la cámara. Abrila directamente en una pestaña propia.';
+          openTabBtn.style.display = 'inline-flex';
+        } else {
+          guide = permissionBlockedGuide();
+        }
+      }
+
+      setScannerGuide(guide);
+      const manualInput = document.getElementById('scannerManualInput');
+      if (manualInput) manualInput.focus({ preventScroll: true });
+    }
+
+    async function createBarcodeDetector() {
+      if (!('BarcodeDetector' in window)) return null;
+      try {
+        let formats = SCAN_FORMATS;
+        if (typeof BarcodeDetector.getSupportedFormats === 'function') {
+          const supported = await BarcodeDetector.getSupportedFormats();
+          formats = SCAN_FORMATS.filter(f => supported.includes(f));
+          if (!formats.length) return null;
+        }
+        return new BarcodeDetector({ formats });
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function scanLoop() {
+      if (!scanner.active || scanner.done || !scanner.detector || !scanner.stream) return;
+      const video = document.getElementById('scannerVideo');
+      scanner.detector.detect(video).then(codes => {
+        if (!scanner.active || scanner.done) return;
+        if (codes && codes.length) {
+          handleScannerDetection(codes[0].rawValue);
+          return;
+        }
+        scanner.timer = setTimeout(scanLoop, 220);
+      }).catch(() => {
+        if (scanner.active && !scanner.done) scanner.timer = setTimeout(scanLoop, 220);
+      });
+    }
+
+    function handleScannerDetection(code) {
+      code = String(code || '').trim();
+      if (!code || scanner.done || code === scanner.lastCode) return;
+      scanner.lastCode = code;
+      scanner.done = true;
+      scannerFeedback();
+      closeScanner(code);
+    }
+
+    function scannerFeedback() {
+      if (navigator.vibrate) { try { navigator.vibrate(120); } catch (e) {} }
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.value = 880;
+        gain.gain.value = 0.15;
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        setTimeout(() => { osc.stop(); ctx.close(); }, 120);
+      } catch (e) {}
+    }
+
+    function stopScannerStream() {
+      if (scanner.timer) clearTimeout(scanner.timer);
+      scanner.timer = null;
+      scanner.detector = null;
+      if (scanner.stream) scanner.stream.getTracks().forEach(track => track.stop());
+      scanner.stream = null;
+      const video = document.getElementById('scannerVideo');
+      if (video) { video.pause(); video.srcObject = null; }
+    }
+
+    function closeScanner(code) {
+      scanner.active = false;
+      scanner.done = true;
+      stopScannerStream();
+      document.getElementById('scannerBackdrop').classList.remove('show');
+      document.getElementById('scannerOpenTabBtn').style.display = 'none';
+      setScannerGuide('');
+      const callback = scanner.onResult;
+      scanner.onResult = null;
+      if (callback && code) callback(code);
+      keepScannerFocus();
+    }
+
+    function openProductForm(id, defaults) {
+      const p = id ? state.products.find(x => x.ID === id) : (defaults || {});
+      const title = id ? 'Editar producto' : 'Nuevo producto';
+      openModal(title, `
+        <form id="productForm" class="form-grid">
+          <input type="hidden" name="ID" value="${escapeAttr(p.ID || '')}">
+          <div class="full">
+            <label>Codigo de barras</label>
+            <div style="display:flex;gap:8px">
+              <input name="CodigoBarras" id="productBarcodeInput" type="text" value="${escapeAttr(p.CodigoBarras || '')}" required style="flex:1">
+              <button type="button" class="btn btn-scan btn-icon" id="productScanBtn" title="Escanear con camara"><span class="material-icons">photo_camera</span></button>
+            </div>
+          </div>
+          ${field('Nombre', 'Nombre', p.Nombre, 'text', true)}
+          ${field('Descripcion', 'Descripcion', p.Descripcion)}
+          ${field('Categoria', 'Categoria', p.Categoria || 'General', 'text', false, 'categoryNames')}
+          ${field('Proveedor', 'Proveedor', p.Proveedor, 'text', false, 'supplierNames')}
+          ${field('Precio compra', 'PrecioCompra', p.PrecioCompra || 0, 'number')}
+          ${field('Precio venta', 'PrecioVenta', p.PrecioVenta || 0, 'number')}
+          ${id ? `<div><label>Stock actual</label><input name="Stock" type="number" value="${escapeAttr(p.Stock || 0)}" readonly style="background:#f1f5f9;color:var(--muted)"><span class="muted" style="font-size:11px">Se modifica desde Entradas o Salidas</span></div>` : field('Stock', 'Stock', p.Stock || 0, 'number')}
+          ${field('Stock minimo', 'StockMinimo', p.StockMinimo || 0, 'number')}
+          ${field('Stock maximo', 'StockMaximo', p.StockMaximo || 0, 'number')}
+          ${field('Unidad', 'Unidad', p.Unidad || 'unidad')}
+          ${field('Ubicacion', 'Ubicacion', p.Ubicacion)}
+          <div><label>Estado</label><select name="Estado"><option ${p.Estado === 'Activo' ? 'selected' : ''}>Activo</option><option ${p.Estado === 'Inactivo' ? 'selected' : ''}>Inactivo</option></select></div>
+          <div class="full"><label>Observaciones</label><textarea name="Observaciones">${escapeHtml(p.Observaciones || '')}</textarea></div>
+        </form>`,
+        `<button class="btn btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="submitProduct()">Guardar</button>`);
+      document.getElementById('productScanBtn').addEventListener('click', () => openScanner(code => {
+        const input = document.getElementById('productBarcodeInput');
+        if (input) { input.value = code; input.focus(); }
+      }));
+    }
+
+    function submitProduct() {
+      const data = formData(document.getElementById('productForm'));
+      showLoader(true);
+      callServer('saveProduct', data).then(res => {
+        toast(res.message, 'success');
+        closeModal();
+        refreshAll();
+      }).catch(showError).finally(() => showLoader(false));
+    }
+
+    function toggleProduct(id, status) {
+      showLoader(true);
+      callServer('updateProductStatus', id, status).then(res => { toast(res.message, 'success'); refreshAll(); }).catch(showError).finally(() => showLoader(false));
+    }
+
+    function deleteProduct(id) {
+      if (!confirm('Eliminar logicamente este producto?')) return;
+      showLoader(true);
+      callServer('deleteProduct', id).then(res => { toast(res.message, 'success'); refreshAll(); }).catch(showError).finally(() => showLoader(false));
+    }
+
+    function openCategoryForm(id) {
+      const c = id ? state.categories.find(x => x.ID === id) : {};
+      openModal(id ? 'Editar categoria' : 'Nueva categoria', `
+        <form id="categoryForm" class="form-grid"><input type="hidden" name="ID" value="${escapeAttr(c.ID || '')}">${field('Nombre','Nombre',c.Nombre,'text',true)}${field('Color','Color',c.Color || '#64748b','color')}<div><label>Estado</label><select name="Estado"><option ${c.Estado === 'Activo' ? 'selected' : ''}>Activo</option><option ${c.Estado === 'Inactivo' ? 'selected' : ''}>Inactivo</option></select></div></form>`,
+        `<button class="btn btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="submitGeneric('categoryForm','saveCategory')">Guardar</button>`);
+    }
+
+    function openSupplierForm(id) {
+      const s = id ? state.suppliers.find(x => x.ID === id) : {};
+      openContactForm('supplierForm', 'Proveedor', s, 'saveSupplier');
+    }
+
+    function openCustomerForm(id) {
+      const c = id ? state.customers.find(x => x.ID === id) : {};
+      openContactForm('customerForm', 'Cliente', c, 'saveCustomer', true);
+    }
+
+    function openContactForm(formId, label, data, fn, isCustomer) {
+      openModal((data.ID ? 'Editar ' : 'Nuevo ') + label.toLowerCase(), `
+        <form id="${formId}" class="form-grid">
+          <input type="hidden" name="ID" value="${escapeAttr(data.ID || '')}">
+          ${field('Nombre','Nombre',data.Nombre,'text',true)}${field('Telefono','Telefono',data.Telefono)}${field('Email','Email',data.Email,'email')}${field('Direccion','Direccion',data.Direccion)}
+          ${isCustomer ? field('CUIT/DNI','CuitDni',data.CuitDni) : ''}
+          <div><label>Estado</label><select name="Estado"><option ${data.Estado === 'Activo' ? 'selected' : ''}>Activo</option><option ${data.Estado === 'Inactivo' ? 'selected' : ''}>Inactivo</option></select></div>
+          <div class="full"><label>Observaciones</label><textarea name="Observaciones">${escapeHtml(data.Observaciones || '')}</textarea></div>
+        </form>`,
+        `<button class="btn btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="submitGeneric('${formId}','${fn}')">Guardar</button>`);
+    }
+
+    function submitGeneric(formId, fn) {
+      showLoader(true);
+      callServer(fn, formData(document.getElementById(formId))).then(res => { toast(res.message, 'success'); closeModal(); refreshAll(); }).catch(showError).finally(() => showLoader(false));
+    }
+
+    function deleteCategory(id) { if (confirm('Eliminar categoria?')) submitDelete('deleteCategory', id); }
+    function deleteSupplier(id) { if (confirm('Eliminar proveedor?')) submitDelete('deleteSupplier', id); }
+    function deleteCustomer(id) { if (confirm('Eliminar cliente?')) submitDelete('deleteCustomer', id); }
+    function submitDelete(fn, id) { showLoader(true); callServer(fn, id).then(res => { toast(res.message, 'success'); refreshAll(); }).catch(showError).finally(() => showLoader(false)); }
+
+    function loadMovements() {
+      callServer('listMovements', {}).then(res => {
+        document.getElementById('movementsTable').innerHTML = res.data.map(m => `<tr><td>${escapeHtml(m.Fecha)}</td><td>${escapeHtml(m.Producto)}</td><td>${escapeHtml(m.Tipo)}</td><td>${num(m.Cantidad)}</td><td>${num(m.StockAnterior)}</td><td>${num(m.StockNuevo)}</td><td>${escapeHtml(m.Usuario)}</td><td>${escapeHtml(m.Observaciones)}</td></tr>`).join('') || '<tr><td colspan="8"><div class="empty">Sin movimientos</div></td></tr>';
+      }).catch(showError);
+    }
+
+    function refreshAlerts() {
+      showLoader(true);
+      callServer('refreshAlerts').then(res => { toast(res.message, 'success'); refreshAll(); }).catch(showError).finally(() => showLoader(false));
+    }
+
+    function loadReports() {
+      showLoader(true);
+      callServer('getReports', { from: document.getElementById('reportFrom').value, to: document.getElementById('reportTo').value }).then(res => renderReports(res.data)).catch(showError).finally(() => showLoader(false));
+    }
+
+    function renderReports(report) {
+      const s = report.resumen || {};
+      document.getElementById('reportsContent').innerHTML = `
+        <div class="grid grid-4">
+          ${reportCard('Productos', s.productos)}${reportCard('Sin stock', s.sinStock)}${reportCard('Stock bajo', s.stockBajo)}${reportCard('Ventas', s.ventas)}${reportCard('Unidades vendidas', s.unidadesVendidas)}${reportCard('Ingresos', money(s.ingresos))}${reportCard('Ganancia estimada', money(s.ganancia))}
+        </div>
+        <div class="grid grid-2" style="margin-top:16px">
+          <div class="card"><div class="card-header"><h3 class="card-title">Productos mas vendidos</h3></div>${simpleTable(report.productosMasVendidos, ['Producto','Cantidad','Total'])}</div>
+          <div class="card"><div class="card-header"><h3 class="card-title">Ventas por fecha</h3></div>${simpleTable(report.ventasPorFecha, ['Fecha','Ventas','Total'])}</div>
+          <div class="card"><div class="card-header"><h3 class="card-title">Stock bajo</h3></div>${simpleTable(report.productosStockBajo, ['ID','Nombre','Stock','StockMinimo'])}</div>
+          <div class="card"><div class="card-header"><h3 class="card-title">Sin stock</h3></div>${simpleTable(report.productosSinStock, ['ID','Nombre','Stock'])}</div>
+        </div>`;
+    }
+
+    function reportCard(label, value) { return `<div class="card stat"><span class="stat-label">${label}</span><div class="stat-value">${value || 0}</div></div>`; }
+    function simpleTable(rows, cols) {
+      if (!rows || !rows.length) return '<div class="empty">Sin datos</div>';
+      return `<div class="table-wrap"><table><thead><tr>${cols.map(c => `<th>${escapeHtml(c)}</th>`).join('')}</tr></thead><tbody>${rows.slice(0, 20).map(r => `<tr>${cols.map(c => `<td>${formatCell(r[c])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+    }
+
+    function renderSettings() {
+      document.getElementById('settingsForm').innerHTML = `
+        <div><label>Moneda</label><input name="CURRENCY" value="${escapeAttr(state.settings.CURRENCY || 'ARS')}"></div>
+        <div><label>Alertas stock bajo</label><select name="LOW_STOCK_ALERTS"><option value="true" ${state.settings.LOW_STOCK_ALERTS !== 'false' ? 'selected' : ''}>true</option><option value="false" ${state.settings.LOW_STOCK_ALERTS === 'false' ? 'selected' : ''}>false</option></select></div>
+        <div class="full"><button class="btn btn-primary" type="submit">Guardar configuracion</button></div>`;
+      document.getElementById('settingsForm').onsubmit = e => {
+        e.preventDefault();
+        showLoader(true);
+        callServer('saveSettings', formData(e.target)).then(res => { state.settings = res.data; toast(res.message, 'success'); }).catch(showError).finally(() => showLoader(false));
+      };
+      const apiUrlEl = document.getElementById('settingsApiUrl');
+      if (apiUrlEl) apiUrlEl.textContent = apiConfig.url || '(sin configurar)';
+    }
+
+    function createBackup() {
+      showLoader(true);
+      callServer('createBackup', 'Backup desde interfaz').then(res => { toast(res.message, 'success'); loadBackups(true); }).catch(showError).finally(() => showLoader(false));
+    }
+
+    function loadBackups(showMessage) {
+      callServer('listBackups').then(res => {
+        document.getElementById('backupList').innerHTML = res.data.map(b => `<div style="padding:12px 0;border-bottom:1px solid var(--line)"><strong>${escapeHtml(b.NombreArchivo)}</strong><br><span class="muted">${escapeHtml(b.Fecha)}</span><br><a href="${escapeAttr(b.Url)}" target="_blank">Abrir backup</a></div>`).join('') || '<div class="empty">Sin backups</div>';
+        if (showMessage) toast('Backups actualizados', 'success');
+      }).catch(() => {});
+    }
+
+    function openModal(title, body, footer) {
+      document.getElementById('modalTitle').textContent = title;
+      document.getElementById('modalBody').innerHTML = body;
+      document.getElementById('modalFooter').innerHTML = footer || '';
+      document.getElementById('modalBackdrop').classList.add('show');
+      addDatalists();
+    }
+
+    function closeModal() { document.getElementById('modalBackdrop').classList.remove('show'); keepScannerFocus(); }
+
+    function field(label, name, value, type, required, list) {
+      type = type || 'text';
+      const attrs = `${required ? 'required' : ''} ${type === 'number' ? 'step="0.01" min="0"' : ''} ${list ? `list="${list}"` : ''}`;
+      return `<div><label>${label}</label><input name="${name}" type="${type}" value="${escapeAttr(value === undefined || value === null ? '' : value)}" ${attrs}></div>`;
+    }
+
+    function formData(form) {
+      const data = {};
+      new FormData(form).forEach((value, key) => data[key] = value);
+      return data;
+    }
+
+    function showLoader(show) { document.getElementById('loader').classList.toggle('show', !!show); }
+    function showError(error) { toast(error && error.message ? error.message : String(error), 'error'); }
+    function toast(message, type) {
+      const el = document.createElement('div');
+      el.className = 'toast ' + (type || 'info');
+      el.textContent = message;
+      document.getElementById('toastWrap').appendChild(el);
+      setTimeout(() => el.remove(), 4200);
+    }
+
+    function num(value) { const n = Number(String(value || 0).replace(',', '.')); return Number.isFinite(n) ? n : 0; }
+    function money(value) { return new Intl.NumberFormat('es-AR', { style: 'currency', currency: state.settings.CURRENCY || 'ARS' }).format(num(value)); }
+    function normalize(value) { return String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim(); }
+    function escapeHtml(value) { return String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
+    function escapeAttr(value) { return escapeHtml(value).replace(/`/g, '&#96;'); }
+    function formatCell(value) { return typeof value === 'number' ? num(value) : escapeHtml(value); }
+  </script>
+</body>
+</html>
