@@ -72,6 +72,7 @@
     .nav button:hover { background: #f1f5f9; transform: translateX(2px); }
     .nav button.active { background: #dbeafe; color: var(--primary-2); font-weight: 800; }
     .nav .material-icons { font-size: 21px; }
+    .nav button.mobile-hidden { display: none; }
 
     .main { min-width: 0; display: flex; flex-direction: column; height: 100%; }
     .topbar {
@@ -128,6 +129,14 @@
     .pill-ok { background: #dcfce7; color: #166534; }
     .pill-warn { background: #fef3c7; color: #92400e; }
     .pill-danger { background: #fee2e2; color: #991b1b; }
+    .sales-today-pill { background: #dcfce7; color: #166534; white-space: nowrap; }
+    .alerts-bell { position: relative; }
+    .alerts-bell.has-alerts { color: var(--danger); }
+    .badge-count {
+      position: absolute; top: 4px; right: 4px; min-width: 16px; height: 16px; padding: 0 3px;
+      border-radius: 999px; background: var(--danger); color: #fff; font-size: 10px; font-weight: 900;
+      display: flex; align-items: center; justify-content: center; line-height: 1;
+    }
 
     .pos-layout { display: grid; grid-template-columns: minmax(0, 1.35fr) 420px; gap: 18px; align-items: start; }
     .scan-box { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; margin-bottom: 14px; }
@@ -183,16 +192,6 @@
     .setup-screen { position: fixed; inset: 0; background: var(--bg); display: none; align-items: center; justify-content: center; z-index: 500; padding: 20px; overflow: auto; }
     .setup-screen.show { display: flex; }
     .setup-card { background: #fff; border-radius: var(--radius); box-shadow: var(--shadow); padding: 28px; width: min(440px, 100%); }
-
-    #receiptPrintArea { position: fixed; top: -9999px; left: -9999px; width: 300px; }
-    @media print {
-      body > *:not(#receiptPrintArea) { display: none !important; }
-      #receiptPrintArea { position: static; width: 100%; }
-      #receiptPrintArea h2 { text-align: center; }
-      #receiptPrintArea table { width: 100%; border-collapse: collapse; }
-      #receiptPrintArea td { padding: 4px 0; border-bottom: 1px dashed #ccc; }
-      #receiptPrintArea .receipt-total { font-size: 18px; font-weight: bold; text-align: right; }
-    }
     .camera-panel { display: none; margin-top: 12px; }
     .camera-panel.show { display: block; }
     video { width: 100%; border-radius: 16px; background: #0f172a; max-height: 300px; object-fit: cover; }
@@ -252,9 +251,9 @@
       </div>
       <nav class="nav" id="nav">
         <button class="active" data-view="dashboard"><span class="material-icons">dashboard</span>Dashboard</button>
-        <button data-view="pos"><span class="material-icons">point_of_sale</span>Punto de venta</button>
+        <button data-view="pos" data-essential="true"><span class="material-icons">point_of_sale</span>Punto de venta</button>
         <button data-view="products"><span class="material-icons">inventory</span>Productos</button>
-        <button data-view="entries"><span class="material-icons">add_box</span>Entradas</button>
+        <button data-view="entries" data-essential="true"><span class="material-icons">add_box</span>Entradas</button>
         <button data-view="exits"><span class="material-icons">indeterminate_check_box</span>Salidas</button>
         <button data-view="movements"><span class="material-icons">sync_alt</span>Movimientos</button>
         <button data-view="categories"><span class="material-icons">category</span>Categorias</button>
@@ -275,6 +274,11 @@
           </div>
         </div>
         <div class="actions">
+          <span class="pill sales-today-pill" id="salesTodayPill">Ventas hoy: 0</span>
+          <button class="btn btn-icon btn-ghost alerts-bell" id="alertsBell" title="Alertas de stock">
+            <span class="material-icons">notifications</span>
+            <span class="badge-count" id="alertsBadgeCount" style="display:none">0</span>
+          </button>
           <button class="btn btn-ghost" id="refreshBtn"><span class="material-icons">refresh</span>Actualizar</button>
           <button class="btn btn-primary" id="quickSaleBtn"><span class="material-icons">point_of_sale</span>Venta</button>
         </div>
@@ -479,7 +483,6 @@
   </div>
   <div class="loader" id="loader"><div class="spinner"></div></div>
   <div class="toast-wrap" id="toastWrap"></div>
-  <div id="receiptPrintArea"></div>
 
   <script>
     const urlParams = new URLSearchParams(window.location.search);
@@ -532,7 +535,35 @@
 
     document.addEventListener('DOMContentLoaded', bootstrap);
 
+    /* ============================================================
+       DETECCION DE DISPOSITIVO
+       Se usa el mismo breakpoint que ya define el diseño responsive (820px)
+       via matchMedia: es mas confiable que el user agent (no se puede
+       spoofear tan facil y refleja el tamaño real disponible, que es lo que
+       realmente importa para decidir cuanta interfaz mostrar). En celular
+       el menu solo muestra las funciones esenciales (Entradas y Punto de
+       venta); el resto de las pantallas sigue funcionando igual si se llega
+       a ellas por otro camino (deep link, boton interno, etc.), solo se
+       ocultan del menu para no saturar una pantalla chica.
+       ============================================================ */
+    const MOBILE_MEDIA_QUERY = window.matchMedia('(max-width: 820px)');
+
+    function isMobileDevice() {
+      return MOBILE_MEDIA_QUERY.matches;
+    }
+
+    function applyDeviceMode() {
+      const mobile = isMobileDevice();
+      document.querySelectorAll('#nav button').forEach(btn => {
+        const essential = btn.dataset.essential === 'true';
+        btn.classList.toggle('mobile-hidden', mobile && !essential);
+      });
+    }
+
+    MOBILE_MEDIA_QUERY.addEventListener('change', applyDeviceMode);
+
     function bootstrap() {
+      applyDeviceMode();
       bindEvents();
       bindSetupScreen();
       if (!apiConfig.url) {
@@ -543,12 +574,60 @@
       init();
     }
 
+    /* ============================================================
+       CACHE DE SESION (stale-while-revalidate)
+       GitHub Pages es hosting estatico: no hay servidor que se pueda "mantener
+       despierto". Lo que si podemos controlar es que, dentro de la misma pestaña,
+       volver a una pantalla no implique esperar de nuevo la primera carga: se
+       guarda la ultima respuesta de initializeSystem en sessionStorage y se pinta
+       al instante, mientras se refresca en segundo plano si los datos ya no son
+       recientes. sessionStorage (no localStorage) para no arrastrar datos viejos
+       de un dia anterior.
+       ============================================================ */
+    const INITIAL_DATA_CACHE_KEY = 'stockInitialDataCache';
+    const INITIAL_DATA_CACHE_TTL_MS = 60000;
+
+    function readInitialDataCache() {
+      try {
+        const raw = sessionStorage.getItem(INITIAL_DATA_CACHE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        return (parsed && parsed.data && parsed.savedAt) ? parsed : null;
+      } catch (e) { return null; }
+    }
+
+    function writeInitialDataCache(data) {
+      try { sessionStorage.setItem(INITIAL_DATA_CACHE_KEY, JSON.stringify({ data: data, savedAt: Date.now() })); }
+      catch (e) {}
+    }
+
     function init() {
+      const cached = readInitialDataCache();
+      const cacheIsFresh = !!cached && (Date.now() - cached.savedAt < INITIAL_DATA_CACHE_TTL_MS);
+      let alreadyRouted = false;
+
+      if (cached) {
+        applyInitialData(cached.data);
+        applyInitialRoute();
+        alreadyRouted = true;
+      }
+
+      if (cacheIsFresh) {
+        // Ya se ve la interfaz con datos recientes: se refresca sin loader ni bloquear nada.
+        callServer('initializeSystem').then(res => {
+          applyInitialData(res.data);
+          writeInitialDataCache(res.data);
+        }).catch(() => {});
+        diagnoseCameraAccess();
+        return;
+      }
+
       showLoader(true);
       callServer('initializeSystem').then(res => {
         applyInitialData(res.data);
+        writeInitialDataCache(res.data);
         toast(res.message || 'Sistema listo', 'success');
-        applyInitialRoute();
+        if (!alreadyRouted) applyInitialRoute();
       }).catch(error => {
         showError(error);
         // Si la API no responde puede ser que la URL/token guardados esten mal: ofrecemos reconectar.
@@ -592,7 +671,12 @@
     }
 
     function applyInitialRoute() {
-      if (!INITIAL_PAGE || !titles[INITIAL_PAGE] || INITIAL_PAGE === 'dashboard') return;
+      // Sin pagina explicita en la URL: en celular arrancamos directo en Punto de venta
+      // (la funcion esencial mas usada), en PC/tablet se deja el Dashboard de siempre.
+      if (!INITIAL_PAGE || !titles[INITIAL_PAGE] || INITIAL_PAGE === 'dashboard') {
+        if (isMobileDevice()) showView('pos');
+        return;
+      }
       showView(INITIAL_PAGE);
       if (INITIAL_ACTION !== 'new') return;
       setTimeout(() => {
@@ -614,6 +698,13 @@
       document.querySelector('.content').addEventListener('click', () => document.getElementById('sidebar').classList.remove('open'));
       document.getElementById('refreshBtn').addEventListener('click', refreshAll);
       document.getElementById('quickSaleBtn').addEventListener('click', () => showView('pos'));
+      document.getElementById('alertsBell').addEventListener('click', () => {
+        showView('dashboard');
+        setTimeout(() => {
+          const list = document.getElementById('alertList');
+          if (list) list.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 80);
+      });
       document.getElementById('productSearch').addEventListener('input', renderProducts);
       document.getElementById('quickSearch').addEventListener('input', renderQuickProducts);
       document.getElementById('barcodeInput').addEventListener('keydown', handleScannerKey);
@@ -690,6 +781,7 @@
       state.alerts = data.alerts || [];
       state.settings = data.settings || {};
       renderAll();
+      renderCurrentView(); // repinta la vista que el usuario tenga abierta con los datos nuevos
     }
 
     function refreshAll() {
@@ -700,15 +792,17 @@
       }).catch(showError).finally(() => showLoader(false));
     }
 
+    /**
+     * Solo renderiza lo que hace falta para pintar rapido: dashboard, el carrito (POS debe
+     * quedar listo al instante) y los datalists/select que otras pantallas dan por hechos.
+     * El resto (tablas de productos/listas, formularios de stock, configuracion, backups)
+     * se arma recien cuando el usuario abre esa vista, desde showView().
+     */
     function renderAll() {
       renderDashboard();
-      renderProducts();
-      renderQuickProducts();
+      renderCustomerSelect();
+      addDatalists();
       renderCart();
-      renderLists();
-      renderStockForms();
-      renderSettings();
-      loadBackups(false);
     }
 
     function showView(view) {
@@ -721,8 +815,18 @@
       document.getElementById('pageSubtitle').textContent = titles[view][1];
       document.getElementById('sidebar').classList.remove('open');
       if (view === 'pos') setTimeout(() => document.getElementById('barcodeInput').focus(), 80);
-      if (view === 'movements') loadMovements();
-      if (view === 'settings') loadBackups(false);
+      renderCurrentView();
+    }
+
+    /** Arma el contenido de la vista activa bajo demanda: al abrirla o al refrescar datos. */
+    function renderCurrentView() {
+      const view = state.currentView;
+      if (view === 'pos') renderQuickProducts();
+      else if (view === 'products') renderProducts();
+      else if (view === 'categories' || view === 'suppliers' || view === 'customers') renderLists();
+      else if (view === 'entries' || view === 'exits') renderStockForms();
+      else if (view === 'movements') loadMovements();
+      else if (view === 'settings') { renderSettings(); loadBackups(false); }
     }
 
     function renderDashboard() {
@@ -744,6 +848,19 @@
       renderMiniList('lastMovements', d.lastMovements || [], row => `<strong>${escapeHtml(row.Tipo)}</strong> ${escapeHtml(row.Producto)}<br><span class="muted">${escapeHtml(row.Fecha)} - Cant: ${num(row.Cantidad)}</span>`);
       renderMiniList('alertList', d.alerts || [], row => `<span class="pill ${row.Prioridad === 'Alta' ? 'pill-danger' : row.Prioridad === 'Media' ? 'pill-warn' : ''}">${escapeHtml(row.Tipo)}</span> ${escapeHtml(row.Producto)}<br><span class="muted">${escapeHtml(row.Mensaje)}</span>`);
       renderMiniList('topProducts', d.topProducts || [], row => `<strong>${escapeHtml(row.Producto)}</strong><br><span class="muted">${num(row.Cantidad)} unidades - ${money(row.Total)}</span>`);
+      updateTopbarNotifications();
+    }
+
+    /** Notificaciones "pasivas": contador de ventas del dia y badge de alertas de stock. */
+    function updateTopbarNotifications() {
+      const d = state.dashboard || {};
+      document.getElementById('salesTodayPill').textContent = 'Ventas hoy: ' + num(d.todaySales);
+
+      const alertCount = num(d.lowStockProducts) + num(d.outOfStockProducts);
+      const badge = document.getElementById('alertsBadgeCount');
+      badge.textContent = alertCount > 99 ? '99+' : alertCount;
+      badge.style.display = alertCount > 0 ? 'flex' : 'none';
+      document.getElementById('alertsBell').classList.toggle('has-alerts', alertCount > 0);
     }
 
     function renderMiniList(id, rows, mapper) {
@@ -795,6 +912,10 @@
         <tr><td>${escapeHtml(c.ID)}</td><td>${escapeHtml(c.Nombre)}</td><td>${escapeHtml(c.Telefono)}</td><td>${escapeHtml(c.Email)}</td><td>${escapeHtml(c.CuitDni)}</td><td>${statusPill(c.Estado)}</td><td><div class="actions"><button class="btn btn-ghost" onclick="openCustomerForm('${c.ID}')">Editar</button><button class="btn btn-danger" onclick="deleteCustomer('${c.ID}')">Eliminar</button></div></td></tr>
       `).join('') || '<tr><td colspan="7"><div class="empty">Sin clientes</div></td></tr>';
 
+      renderCustomerSelect();
+    }
+
+    function renderCustomerSelect() {
       document.getElementById('saleCustomer').innerHTML = '<option value="">Consumidor final</option>' + state.customers.filter(c => c.Estado === 'Activo').map(c => `<option value="${escapeAttr(c.ID)}">${escapeHtml(c.Nombre)}</option>`).join('');
     }
 
@@ -1137,28 +1258,11 @@
       showLoader(true);
       callServer('saveSale', payload).then(res => {
         state.lastSale = res.data;
-        toast(res.message, 'success');
+        const sale = res.data || {};
+        toast('Venta ' + (sale.number || '') + ' confirmada. Total ' + money(sale.total) + (num(sale.vuelto) > 0 ? ' - Vuelto ' + money(sale.vuelto) : ''), 'success');
         resetCart();
-        printReceipt(res.data);
         refreshAll();
       }).catch(showError).finally(() => showLoader(false));
-    }
-
-    function printReceipt(sale) {
-      const area = document.getElementById('receiptPrintArea');
-      const payments = Array.isArray(sale.payments) ? sale.payments : [];
-      const paymentsBlock = payments.length > 1
-        ? `<p style="margin-top:8px"><strong>Detalle de pago</strong></p><table>${payments.map(p => `<tr><td>${escapeHtml(p.method)}</td><td style="text-align:right">${money(p.amount)}</td></tr>`).join('')}</table>`
-        : '';
-      area.innerHTML = `
-        <h2>Sistema de Stock</h2>
-        <p>Venta: ${escapeHtml(sale.number)}<br>Fecha: ${escapeHtml(sale.date)}<br>Pago: ${escapeHtml(sale.paymentMethod)}</p>
-        <table>${sale.items.map(i => `<tr><td>${escapeHtml(i.name)} x ${num(i.quantity)}</td><td style="text-align:right">${money(i.subtotal)}</td></tr>`).join('')}</table>
-        <p>Subtotal: ${money(sale.subtotal)}<br>Descuento: ${money(sale.discount)}</p>
-        <p class="receipt-total">Total ${money(sale.total)}</p>
-        ${paymentsBlock}
-        <p>Monto recibido: ${money(sale.montoRecibido)}<br>Vuelto: ${money(sale.vuelto)}</p>`;
-      setTimeout(() => window.print(), 60);
     }
 
     function keepScannerFocus() {
@@ -1508,7 +1612,7 @@
           ${field('Precio compra', 'PrecioCompra', p.PrecioCompra || 0, 'number')}
           ${field('Precio venta', 'PrecioVenta', p.PrecioVenta || 0, 'number')}
           ${id ? `<div><label>Stock actual</label><input name="Stock" type="number" value="${escapeAttr(p.Stock || 0)}" readonly style="background:#f1f5f9;color:var(--muted)"><span class="muted" style="font-size:11px">Se modifica desde Entradas o Salidas</span></div>` : field('Stock', 'Stock', p.Stock || 0, 'number')}
-          ${field('Stock minimo', 'StockMinimo', p.StockMinimo || 0, 'number')}
+          ${field('Stock minimo', 'StockMinimo', p.StockMinimo || (id ? 0 : (state.settings.LOW_STOCK_DEFAULT_THRESHOLD || 0)), 'number')}
           ${field('Stock maximo', 'StockMaximo', p.StockMaximo || 0, 'number')}
           ${field('Unidad', 'Unidad', p.Unidad || 'unidad')}
           ${field('Ubicacion', 'Ubicacion', p.Ubicacion)}
@@ -1622,6 +1726,8 @@
       document.getElementById('settingsForm').innerHTML = `
         <div><label>Moneda</label><input name="CURRENCY" value="${escapeAttr(state.settings.CURRENCY || 'ARS')}"></div>
         <div><label>Alertas stock bajo</label><select name="LOW_STOCK_ALERTS"><option value="true" ${state.settings.LOW_STOCK_ALERTS !== 'false' ? 'selected' : ''}>true</option><option value="false" ${state.settings.LOW_STOCK_ALERTS === 'false' ? 'selected' : ''}>false</option></select></div>
+        <div><label>Umbral de stock bajo sugerido</label><input name="LOW_STOCK_DEFAULT_THRESHOLD" type="number" min="0" step="1" value="${escapeAttr(state.settings.LOW_STOCK_DEFAULT_THRESHOLD || '5')}"></div>
+        <p class="muted full" style="margin:-6px 0 0">Se usa para precompletar "Stock minimo" al crear un producto nuevo. Cada producto puede tener su propio minimo distinto.</p>
         <div class="full"><button class="btn btn-primary" type="submit">Guardar configuracion</button></div>`;
       document.getElementById('settingsForm').onsubmit = e => {
         e.preventDefault();
